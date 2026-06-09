@@ -2,19 +2,19 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\RateLimiter;
 
 class RateLimitService
 {
     public function isRateLimited(string $canal, string $channelUserId): bool
     {
-        $key = 'rate_limit_'.$canal.'_'.hash('sha256', $channelUserId);
-        $count = Redis::incr($key);
+        $allowed = RateLimiter::attempt(
+            key: "rate_limit_{$canal}_".hash('sha256', $channelUserId),
+            maxAttempts: 10,
+            callback: fn () => true,
+            decaySeconds: 60,
+        );
 
-        if ($count === 1) {
-            Redis::expire($key, 60);
-        }
-
-        return $count > 10;
+        return ! $allowed;
     }
 }

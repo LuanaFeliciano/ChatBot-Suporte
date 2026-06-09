@@ -1,11 +1,11 @@
 <?php
 
 namespace App\Channels\Telegram;
-//aqui sera implementado a logica para processar a mensagem (verificar limit, idempotencia, chamar a ia, salvar no banco e responder)
 
-use App\Services\ChatService;
+use App\Jobs\ProcessChatMessage;
 use App\Services\IdempotencyService;
 use App\Services\RateLimitService;
+use Illuminate\Support\Facades\Redis;
 
 class TelegramWebhookHandler
 {
@@ -13,7 +13,6 @@ class TelegramWebhookHandler
         private readonly TelegramAdapter $adapter,
         private readonly IdempotencyService $idempotency,
         private readonly RateLimitService $rateLimit,
-        private readonly ChatService $chat,
     ) {}
 
     public function handle(array $payload): void
@@ -31,16 +30,24 @@ class TelegramWebhookHandler
         }
 
         if ($this->rateLimit->isRateLimited('telegram', $channelUser)) {
-            $this->adapter->sendReply(
-                $channelUser,
-                'Você enviou muitas mensagens em pouco tempo. Aguarde um momento e tente novamente. 😊',
-            );
-
             return;
         }
 
-        $answer = $this->chat->process('telegram', $channelUser, $userName, $question);
+        $hash = hash('sha256', $channelUser);
+        $pendingKey = "user_pending:telegram:{$hash}";
+        $genKey = "user_gen:telegram:{$hash}";
 
-        $this->adapter->sendReply($channelUser, $answer);
+        Redis::connection()->client()->rpush($pendingKey, json_encode([
+            'user_name' => $userName,
+            'question' => $question,
+        ]));
+        Redis::connection()->client()->expire($pendingKey, 300);
+
+        $generation = (int) Redis::connection()->client()->incr($genKey);
+        Redis::connection()->client()->expire($genKey, 300);
+
+        ProcessChatMessage::dispatch('telegram', $channelUser, $generation)
+            ->onQueue('chat')
+            ->delay(now()->addSeconds(3));
     }
 }

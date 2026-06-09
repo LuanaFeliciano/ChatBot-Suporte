@@ -7,4 +7,5 @@ enum AuditAction: string
     case DocumentUploaded = 'document.uploaded';
     case DocumentDeleted = 'document.deleted';
     case DocumentError = 'document.error';
+    case DocumentUpdated = 'document.updated';
 }

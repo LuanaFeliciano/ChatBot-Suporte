@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Channels\Contracts;
 
 interface ChannelAdapterInterface
@@ -15,4 +16,7 @@ interface ChannelAdapterInterface
 
     /** Send a plain-text reply to the given user. */
     public function sendReply(string $channelUser, string $text): void;
+
+    /** Broadcast a "typing…" indicator to the given user (best-effort, no-op if unsupported). */
+    public function sendTypingAction(string $channelUser): void;
 }

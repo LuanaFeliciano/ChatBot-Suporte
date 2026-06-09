@@ -44,11 +44,14 @@ cp .env.example .env
 # 3. Gere a chave da aplicação
 ./vendor/bin/sail artisan key:generate
 
-# 4. Suba os containers
+# 4. Suba os containers (inclui Redis)
 ./vendor/bin/sail up -d
 
 # 5. Rode as migrations
 ./vendor/bin/sail artisan migrate
+
+# 6. Inicie o worker da fila (necessário para processar as mensagens)
+./vendor/bin/sail artisan queue:work redis --queue=chat
 ```
 
 ### Registrar o webhook do Telegram
@@ -104,6 +107,22 @@ Todos os comandos são executados via Artisan. Formatos aceitos: **PDF** e **tex
 ```
 
 O processo cria o registro local, faz upload para a OpenAI Files API, adiciona ao Vector Store e aguarda a indexação (máximo 60s). Em caso de falha, o erro é registrado no `audit_logs`.
+
+### Atualizar um documento
+
+```bash
+./vendor/bin/sail artisan docs:update {id} caminho/para/novo-arquivo.pdf
+```
+
+Substitui o arquivo indexado de forma atômica: indexa a nova versão primeiro e só remove a antiga após sucesso — sem janela de indisponibilidade. Os metadados (`name`, `module`, `doc-version`) são herdados do documento original por padrão; use as mesmas opções do `docs:ingest` para sobrescrever:
+
+```bash
+./vendor/bin/sail artisan docs:update {id} novo-arquivo.pdf \
+  --name="Nome atualizado" \
+  --doc-version="2.0"
+```
+
+O registro antigo é **soft-deleted** com seus IDs preservados. Um novo registro é criado e seu ID é exibido ao final.
 
 ### Listar documentos
 
