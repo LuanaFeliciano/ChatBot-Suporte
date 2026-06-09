@@ -40,4 +40,11 @@ return [
         'webhook_secret' => env('TELEGRAM_WEBHOOK_SECRET'),
     ],
 
+    'openai' => [
+        'vector_store_id' => env('OPENAI_VECTOR_STORE_ID'),
+        'model'           => env('OPENAI_MODEL', 'gpt-4o'),
+    ],
+
+    'support_ticket_url' => env('SUPPORT_TICKET_URL', 'https://suporte.exemplo.com'),
+
 ];
