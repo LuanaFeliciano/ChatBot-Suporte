@@ -59,15 +59,18 @@ Para desenvolvimento local, exponha a aplicação com [ngrok](https://ngrok.com)
 ngrok http 80
 ```
 
-Depois registre o webhook:
+Com a URL pública em mãos, registre o webhook via Artisan (lê `TELEGRAM_BOT_TOKEN` e `TELEGRAM_WEBHOOK_SECRET` do `.env` automaticamente):
 
 ```bash
-curl -X POST "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://<seu-dominio>/webhook/telegram",
-    "secret_token": "<TELEGRAM_WEBHOOK_SECRET>"
-  }'
+./vendor/bin/sail artisan telegram:webhook:set https://<sua-url-ngrok>
+```
+
+O comando monta a URL final como `https://<sua-url-ngrok>/api/webhook/telegram` e confirma o registro.
+
+### Remover o webhook do Telegram
+
+```bash
+./vendor/bin/sail artisan telegram:webhook:remove
 ```
 
 ---
