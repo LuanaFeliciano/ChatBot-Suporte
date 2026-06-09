@@ -3,8 +3,10 @@
 namespace App\Services;
 
 use App\Ai\Agents\SupportAgent;
+use App\Enums\DocumentStatus;
 use App\Models\BotMessage;
 use App\Models\Channel;
+use App\Models\Document;
 
 class ChatService
 {
@@ -18,6 +20,10 @@ class ChatService
         ?string $userName,
         string $question,
     ): string {
+        if (! Document::where('status', DocumentStatus::Indexed)->exists()) {
+            return 'Ainda estamos configurando nossa base de conhecimento. Em breve estaremos prontos para te ajudar! Por enquanto, entre em contato com o suporte humano.';
+        }
+
         $freshSession = ! $this->session->hasActiveSession($canal, $channelUser);
 
         $startedAt = now();
