@@ -9,6 +9,8 @@ beforeEach(function () {
 it('POST /api/webhook/telegram returns 204 with a valid signature header', function () {
     $this->app->instance(TelegramWebhookHandler::class, new class extends TelegramWebhookHandler
     {
+        public function __construct() {}
+
         public function handle(array $payload): void {}
     });
 
@@ -47,6 +49,8 @@ it('POST /api/webhook/telegram delegates the payload to TelegramWebhookHandler',
 it('POST /api/webhook/telegram always returns 204 regardless of handler outcome', function () {
     $this->app->instance(TelegramWebhookHandler::class, new class extends TelegramWebhookHandler
     {
+        public function __construct() {}
+
         public function handle(array $payload): void {}
     });
 
