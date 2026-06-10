@@ -37,12 +37,15 @@ class TelegramWebhookHandler
         $pendingKey = "user_pending:telegram:{$hash}";
         $genKey = "user_gen:telegram:{$hash}";
 
+        //adiciona no fim da lista, vai ser usada como caixa temporaria das mensagens do usuario
+        //serve para agrupar mensagens enviadas em sequencia de um mesmo usuario 
         Redis::connection()->client()->rpush($pendingKey, json_encode([
             'user_name' => $userName,
             'question' => $question,
         ]));
-        Redis::connection()->client()->expire($pendingKey, 300);
+        Redis::connection()->client()->expire($pendingKey, 300);//a chave vai expirar em 5min (evita lixo acumluado no redis)
 
+        //contador de mensagens
         $generation = (int) Redis::connection()->client()->incr($genKey);
         Redis::connection()->client()->expire($genKey, 300);
 

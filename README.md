@@ -12,11 +12,13 @@ Chatbot de suporte técnico via Telegram com arquitetura RAG. Responde perguntas
 Usuário (Telegram)
   → POST /webhook/telegram
   → Validação do secret token (middleware)
-  → Verificação de idempotência (Redis, lock 30s)
+  → Verificação de idempotência (Redis, TTL 24h)
   → Verificação de rate limit (Redis, 10 msg/min por usuário)
-  → SupportAgent — FileSearch no Vector Store + histórico das últimas 10 mensagens
+  → TelegramWebhookHandler empilha a mensagem em um buffer Redis e despacha ProcessChatMessage (fila "chat", debounce de 3s)
+  → ProcessChatMessage agrupa as mensagens pendentes do usuário e chama o ChatService
+  → ChatService: SupportAgent — FileSearch no Vector Store + histórico das últimas 10 mensagens
   → Persiste conversa (PostgreSQL)
-  → Envia resposta ao usuário
+  → Envia indicador de "digitando" e a resposta ao usuário
 ```
 
 ---
@@ -158,8 +160,9 @@ Remove o arquivo do Vector Store e da OpenAI Files API. O registro local é **so
 |---|---|
 | `TelegramController` | Recebe o webhook e delega ao `TelegramWebhookHandler` |
 | `ValidateTelegramWebhook` | Middleware que valida o secret token em toda requisição |
-| `TelegramWebhookHandler` | Orquestra idempotência, rate limit e chamada ao `ChatService` |
-| `IdempotencyService` | Lock Redis (`SET NX`, TTL 30s) — evita duplicatas em retries do Telegram |
+| `TelegramWebhookHandler` | Verifica idempotência e rate limit, empilha a mensagem em um buffer Redis e despacha `ProcessChatMessage` (debounce de 3s) |
+| `ProcessChatMessage` | Job da fila `chat` — agrupa as mensagens pendentes do usuário, chama o `ChatService`, simula "digitando" e envia a resposta via `TelegramAdapter` |
+| `IdempotencyService` | Lock Redis (`SET NX`, TTL 24h) — evita duplicatas em retries do Telegram |
 | `RateLimitService` | Contador Redis atômico — máximo 10 mensagens/minuto por usuário |
 | `ChatService` | Verifica sessão, instancia o `SupportAgent`, persiste a conversa |
 | `SessionService` | Janela de contexto de 24h por usuário via Redis (TTL renovado a cada mensagem) |
