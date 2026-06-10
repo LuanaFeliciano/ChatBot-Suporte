@@ -1,6 +1,6 @@
 # Suporte APP
 
-Chatbot de suporte técnico via Telegram com arquitetura RAG. Responde perguntas dos usuários com base exclusivamente em documentos indexados em um OpenAI Vector Store — nunca fabrica informação.
+Chatbot de suporte técnico via Telegram com arquitetura RAG. Responde perguntas dos usuários com base exclusivamente em documentos indexados em um OpenAI Vector Store.
 
 **Stack:** Laravel 13 · Laravel AI SDK · OpenAI (GPT + Vector Store) · Redis · PostgreSQL · Telegram Bot API
 
