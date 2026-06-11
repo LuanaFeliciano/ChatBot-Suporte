@@ -21,6 +21,7 @@ return [
     'validation' => [
         'cannot_remove_last_admin_role' => 'Cannot remove the Admin role from the only remaining Admin user.',
         'cannot_deactivate_last_admin' => 'Cannot deactivate the only remaining Admin user.',
+        'cannot_delete_last_admin' => 'Cannot delete the only remaining Admin user.',
     ],
 
 ];

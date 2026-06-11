@@ -2,7 +2,9 @@
 
 namespace App\Enums;
 
-enum PermissionName: string
+use Filament\Support\Contracts\HasLabel;
+
+enum PermissionName: string implements HasLabel
 {
     case ManageUsers = 'manage-users';
     case ManageRoles = 'manage-roles';
@@ -12,4 +14,9 @@ enum PermissionName: string
     case ViewAuditLogs = 'view-audit-logs';
     case ViewKnowledgeGaps = 'view-knowledge-gaps';
     case ViewFeedback = 'view-feedback';
+
+    public function getLabel(): string
+    {
+        return __('enums.permission_name.'.$this->value);
+    }
 }
