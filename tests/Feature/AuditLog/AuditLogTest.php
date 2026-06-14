@@ -5,17 +5,22 @@ use App\Enums\AuditEntityType;
 use App\Enums\DocumentStatus;
 use App\Models\AuditLog;
 use App\Models\Document;
-use App\Services\DocumentService;
+use OpenAI\Contracts\ClientContract;
+use OpenAI\Contracts\Resources\FilesContract;
+use OpenAI\Contracts\Resources\VectorStoresContract;
+use OpenAI\Contracts\Resources\VectorStoresFilesContract;
+use OpenAI\Responses\Files\CreateResponse;
+use OpenAI\Responses\Files\DeleteResponse;
+use OpenAI\Responses\VectorStores\Files\VectorStoreFileDeleteResponse;
+use OpenAI\Responses\VectorStores\Files\VectorStoreFileResponse;
 
 beforeEach(function () {
+    config(['services.openai.vector_store_id' => 'vs-test-id']);
+
     $this->file = tempnam(sys_get_temp_dir(), 'audit_test_');
     file_put_contents($this->file, 'Test document content for audit log tests.');
 
-    $mock = Mockery::mock(DocumentService::class);
-    $mock->shouldReceive('uploadFile')->andReturn('file-abc');
-    $mock->shouldReceive('addToVectorStore')->andReturn('vsf-abc');
-    $mock->shouldReceive('pollIndexingStatus')->andReturn('completed');
-    $this->app->instance(DocumentService::class, $mock);
+    $this->app->instance(ClientContract::class, auditMockIngestClient());
 });
 
 afterEach(function () {
@@ -24,6 +29,39 @@ afterEach(function () {
     }
 });
 
+function auditMockIngestClient(string $openaiFileId = 'file-abc', string $vsFileId = 'vsf-abc'): ClientContract
+{
+    $filesResource = Mockery::mock(FilesContract::class);
+    $filesResource->shouldReceive('upload')
+        ->andReturn(CreateResponse::fake(['id' => $openaiFileId]));
+
+    $vsFilesResource = Mockery::mock(VectorStoresFilesContract::class);
+    $vsFilesResource->shouldReceive('create')
+        ->andReturn(VectorStoreFileResponse::fake(['id' => $vsFileId, 'chunking_strategy' => ['type' => 'other']]));
+    $vsFilesResource->shouldReceive('retrieve')
+        ->andReturn(VectorStoreFileResponse::fake(['status' => 'completed', 'chunking_strategy' => ['type' => 'other']]));
+
+    $vsResource = Mockery::mock(VectorStoresContract::class);
+    $vsResource->shouldReceive('files')->andReturn($vsFilesResource);
+
+    $client = Mockery::mock(ClientContract::class);
+    $client->shouldReceive('files')->andReturn($filesResource);
+    $client->shouldReceive('vectorStores')->andReturn($vsResource);
+
+    return $client;
+}
+
+function auditMockFailingIngestClient(string $errorMessage): ClientContract
+{
+    $filesResource = Mockery::mock(FilesContract::class);
+    $filesResource->shouldReceive('upload')->andThrow(new RuntimeException($errorMessage));
+
+    $client = Mockery::mock(ClientContract::class);
+    $client->shouldReceive('files')->andReturn($filesResource);
+
+    return $client;
+}
+
 it('writes a document.uploaded audit_log record after a successful docs:ingest', function () {
     $this->artisan('docs:ingest', ['path' => $this->file])->assertSuccessful();
 
@@ -31,9 +69,7 @@ it('writes a document.uploaded audit_log record after a successful docs:ingest',
 });
 
 it('writes a document.error audit_log record when docs:ingest fails', function () {
-    $mock = Mockery::mock(DocumentService::class);
-    $mock->shouldReceive('uploadFile')->andThrow(new RuntimeException('API error'));
-    $this->app->instance(DocumentService::class, $mock);
+    $this->app->instance(ClientContract::class, auditMockFailingIngestClient('API error'));
 
     $this->artisan('docs:ingest', ['path' => $this->file])->assertFailed();
 
@@ -47,10 +83,19 @@ it('writes a document.deleted audit_log record after docs:delete', function () {
         'vector_store_file_id' => 'vsf-abc',
     ]);
 
-    $mock = Mockery::mock(DocumentService::class);
-    $mock->shouldReceive('removeFromVectorStore')->once();
-    $mock->shouldReceive('deleteFile')->once();
-    $this->app->instance(DocumentService::class, $mock);
+    $filesResource = Mockery::mock(FilesContract::class);
+    $filesResource->shouldReceive('delete')->once()->andReturn(DeleteResponse::fake());
+
+    $vsFilesResource = Mockery::mock(VectorStoresFilesContract::class);
+    $vsFilesResource->shouldReceive('delete')->once()->andReturn(VectorStoreFileDeleteResponse::fake());
+
+    $vsResource = Mockery::mock(VectorStoresContract::class);
+    $vsResource->shouldReceive('files')->andReturn($vsFilesResource);
+
+    $client = Mockery::mock(ClientContract::class);
+    $client->shouldReceive('files')->andReturn($filesResource);
+    $client->shouldReceive('vectorStores')->andReturn($vsResource);
+    $this->app->instance(ClientContract::class, $client);
 
     $this->artisan('docs:delete', ['document_id' => $doc->id])->assertSuccessful();
 

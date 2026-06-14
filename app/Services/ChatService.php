@@ -73,6 +73,7 @@ class ChatService
             'question' => $question,
             'answer' => $answer,
             'response_ms' => $responseMs,
+            'was_fresh_session' => $freshSession,
         ]);
 
         return $answer;

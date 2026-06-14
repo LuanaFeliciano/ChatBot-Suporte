@@ -19,7 +19,7 @@ class SupportAgent implements Agent, Conversational, HasProviderOptions, HasTool
 {
     use Promptable;
 
-    public const SYSTEM_PROMPT = <<<'PROMPT'
+    public const SYSTEM_PROMPT_PART_1 = <<<'PROMPT'
     Você é um assistente de suporte técnico do aplicativo.
 
     Sua única fonte de informação são:
@@ -63,7 +63,13 @@ class SupportAgent implements Agent, Conversational, HasProviderOptions, HasTool
 
     - Oriente o usuário a entrar em contato com o suporte humano SOMENTE em um destes casos: (1) a informação necessária não está disponível; (2) as etapas de solução foram seguidas e o problema persiste; (3) a situação exige intervenção humana.
     - Se a dúvida foi respondida com sucesso, NÃO inclua o link de suporte nem orientação de escalonamento.
-    - Quando for necessário escalar, use exatamente este formato: "Se o problema continuar, entre em contato pelo link informado." — seguido apenas pelo link. Não solicite nenhuma informação adicional.
+    - Quando for necessário escalar, use exatamente este formato: "
+    PROMPT;
+
+    public const ESCALATION_PHRASE = 'Se o problema continuar, entre em contato pelo link informado.';
+
+    public const SYSTEM_PROMPT_PART_2 = <<<'PROMPT'
+    " — seguido apenas pelo link. Não solicite nenhuma informação adicional.
 
     Regras de formato:
 
@@ -83,6 +89,8 @@ class SupportAgent implements Agent, Conversational, HasProviderOptions, HasTool
 
 
     PROMPT;
+
+    public const SYSTEM_PROMPT = self::SYSTEM_PROMPT_PART_1.self::ESCALATION_PHRASE.self::SYSTEM_PROMPT_PART_2;
 
     public function __construct(
         private readonly string $canal,

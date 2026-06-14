@@ -4,9 +4,16 @@ use App\Enums\AuditAction;
 use App\Enums\DocumentStatus;
 use App\Models\AuditLog;
 use App\Models\Document;
-use App\Services\DocumentService;
+use OpenAI\Contracts\ClientContract;
+use OpenAI\Contracts\Resources\FilesContract;
+use OpenAI\Contracts\Resources\VectorStoresContract;
+use OpenAI\Contracts\Resources\VectorStoresFilesContract;
+use OpenAI\Responses\Files\CreateResponse;
+use OpenAI\Responses\VectorStores\Files\VectorStoreFileResponse;
 
 beforeEach(function () {
+    config(['services.openai.vector_store_id' => 'vs-test-id']);
+
     $this->file = tempnam(sys_get_temp_dir(), 'ingest_test_');
     file_put_contents($this->file, 'Test document content for ingestion.');
 });
@@ -17,31 +24,64 @@ afterEach(function () {
     }
 });
 
-function mockIngestService(
+function mockIngestClient(
     string $openaiFileId = 'file-abc',
     string $vsFileId = 'vsf-abc',
     string $indexStatus = 'completed',
-): DocumentService {
-    $mock = Mockery::mock(DocumentService::class);
-    $mock->shouldReceive('uploadFile')->andReturn($openaiFileId);
-    $mock->shouldReceive('addToVectorStore')->andReturn($vsFileId);
-    $mock->shouldReceive('pollIndexingStatus')->andReturn($indexStatus);
+    ?callable $onUpload = null,
+    ?callable $onAddToVectorStore = null,
+): ClientContract {
+    $filesResource = Mockery::mock(FilesContract::class);
+    $filesResource->shouldReceive('upload')
+        ->andReturnUsing(function () use ($openaiFileId, $onUpload) {
+            if ($onUpload) {
+                $onUpload();
+            }
 
-    return $mock;
+            return CreateResponse::fake(['id' => $openaiFileId]);
+        });
+
+    $vsFilesResource = Mockery::mock(VectorStoresFilesContract::class);
+    $vsFilesResource->shouldReceive('create')
+        ->andReturnUsing(function () use ($vsFileId, $onAddToVectorStore) {
+            if ($onAddToVectorStore) {
+                $onAddToVectorStore();
+            }
+
+            return VectorStoreFileResponse::fake(['id' => $vsFileId, 'chunking_strategy' => ['type' => 'other']]);
+        });
+    $vsFilesResource->shouldReceive('retrieve')
+        ->andReturn(VectorStoreFileResponse::fake(['status' => $indexStatus, 'chunking_strategy' => ['type' => 'other']]));
+
+    $vsResource = Mockery::mock(VectorStoresContract::class);
+    $vsResource->shouldReceive('files')->andReturn($vsFilesResource);
+
+    $client = Mockery::mock(ClientContract::class);
+    $client->shouldReceive('files')->andReturn($filesResource);
+    $client->shouldReceive('vectorStores')->andReturn($vsResource);
+
+    return $client;
+}
+
+function mockFailingUploadClient(string $errorMessage): ClientContract
+{
+    $filesResource = Mockery::mock(FilesContract::class);
+    $filesResource->shouldReceive('upload')->andThrow(new RuntimeException($errorMessage));
+
+    $client = Mockery::mock(ClientContract::class);
+    $client->shouldReceive('files')->andReturn($filesResource);
+
+    return $client;
 }
 
 it('creates a document record with status pending before uploading', function () {
     $statusAtUpload = null;
-    $mock = Mockery::mock(DocumentService::class);
-    $mock->shouldReceive('uploadFile')
-        ->andReturnUsing(function () use (&$statusAtUpload) {
-            $statusAtUpload = Document::first()?->status;
 
-            return 'file-abc';
-        });
-    $mock->shouldReceive('addToVectorStore')->andReturn('vsf-abc');
-    $mock->shouldReceive('pollIndexingStatus')->andReturn('completed');
-    $this->app->instance(DocumentService::class, $mock);
+    $this->app->instance(ClientContract::class, mockIngestClient(
+        onUpload: function () use (&$statusAtUpload) {
+            $statusAtUpload = Document::first()?->status;
+        },
+    ));
 
     $this->artisan('docs:ingest', ['path' => $this->file, '--name' => 'Test Doc']);
 
@@ -50,16 +90,12 @@ it('creates a document record with status pending before uploading', function ()
 
 it('updates status to uploading after the file is uploaded to OpenAI', function () {
     $statusAtAddToVS = null;
-    $mock = Mockery::mock(DocumentService::class);
-    $mock->shouldReceive('uploadFile')->andReturn('file-abc');
-    $mock->shouldReceive('addToVectorStore')
-        ->andReturnUsing(function () use (&$statusAtAddToVS) {
-            $statusAtAddToVS = Document::first()?->status;
 
-            return 'vsf-abc';
-        });
-    $mock->shouldReceive('pollIndexingStatus')->andReturn('completed');
-    $this->app->instance(DocumentService::class, $mock);
+    $this->app->instance(ClientContract::class, mockIngestClient(
+        onAddToVectorStore: function () use (&$statusAtAddToVS) {
+            $statusAtAddToVS = Document::first()?->status;
+        },
+    ));
 
     $this->artisan('docs:ingest', ['path' => $this->file]);
 
@@ -67,7 +103,7 @@ it('updates status to uploading after the file is uploaded to OpenAI', function 
 });
 
 it('updates status to indexed after successful Vector Store indexing', function () {
-    $this->app->instance(DocumentService::class, mockIngestService());
+    $this->app->instance(ClientContract::class, mockIngestClient());
 
     $this->artisan('docs:ingest', ['path' => $this->file])->assertSuccessful();
 
@@ -75,7 +111,7 @@ it('updates status to indexed after successful Vector Store indexing', function 
 });
 
 it('stores openai_file_id and vector_store_file_id on the document record', function () {
-    $this->app->instance(DocumentService::class, mockIngestService('file-xyz', 'vsf-xyz'));
+    $this->app->instance(ClientContract::class, mockIngestClient('file-xyz', 'vsf-xyz'));
 
     $this->artisan('docs:ingest', ['path' => $this->file]);
 
@@ -85,7 +121,7 @@ it('stores openai_file_id and vector_store_file_id on the document record', func
 });
 
 it('stores --name, --module, --version in the document attributes json column', function () {
-    $this->app->instance(DocumentService::class, mockIngestService());
+    $this->app->instance(ClientContract::class, mockIngestClient());
 
     $this->artisan('docs:ingest', [
         'path' => $this->file,
@@ -101,7 +137,7 @@ it('stores --name, --module, --version in the document attributes json column', 
 });
 
 it('stores file_size, mime_type, and uploaded_by on the document record', function () {
-    $this->app->instance(DocumentService::class, mockIngestService());
+    $this->app->instance(ClientContract::class, mockIngestClient());
 
     $this->artisan('docs:ingest', ['path' => $this->file]);
 
@@ -112,7 +148,7 @@ it('stores file_size, mime_type, and uploaded_by on the document record', functi
 });
 
 it('writes a document.uploaded audit_log record on success', function () {
-    $this->app->instance(DocumentService::class, mockIngestService());
+    $this->app->instance(ClientContract::class, mockIngestClient());
 
     $this->artisan('docs:ingest', ['path' => $this->file]);
 
@@ -122,9 +158,7 @@ it('writes a document.uploaded audit_log record on success', function () {
 });
 
 it('updates status to error and populates error_message when the upload fails', function () {
-    $mock = Mockery::mock(DocumentService::class);
-    $mock->shouldReceive('uploadFile')->andThrow(new RuntimeException('API connection failed'));
-    $this->app->instance(DocumentService::class, $mock);
+    $this->app->instance(ClientContract::class, mockFailingUploadClient('API connection failed'));
 
     $this->artisan('docs:ingest', ['path' => $this->file])->assertFailed();
 
@@ -134,9 +168,7 @@ it('updates status to error and populates error_message when the upload fails', 
 });
 
 it('writes a document.error audit_log record on failure', function () {
-    $mock = Mockery::mock(DocumentService::class);
-    $mock->shouldReceive('uploadFile')->andThrow(new RuntimeException('Upload failed'));
-    $this->app->instance(DocumentService::class, $mock);
+    $this->app->instance(ClientContract::class, mockFailingUploadClient('Upload failed'));
 
     $this->artisan('docs:ingest', ['path' => $this->file]);
 

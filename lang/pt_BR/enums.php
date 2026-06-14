@@ -18,4 +18,11 @@ return [
         'view-feedback' => 'Ver feedback',
     ],
 
+    'document_status' => [
+        'pending' => 'Pendente',
+        'uploading' => 'Enviando',
+        'indexed' => 'Indexado',
+        'error' => 'Erro',
+    ],
+
 ];

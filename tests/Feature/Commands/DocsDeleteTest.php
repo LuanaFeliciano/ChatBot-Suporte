@@ -4,15 +4,33 @@ use App\Enums\AuditAction;
 use App\Enums\DocumentStatus;
 use App\Models\AuditLog;
 use App\Models\Document;
-use App\Services\DocumentService;
+use OpenAI\Contracts\ClientContract;
+use OpenAI\Contracts\Resources\FilesContract;
+use OpenAI\Contracts\Resources\VectorStoresContract;
+use OpenAI\Contracts\Resources\VectorStoresFilesContract;
+use OpenAI\Responses\Files\DeleteResponse;
+use OpenAI\Responses\VectorStores\Files\VectorStoreFileDeleteResponse;
 
-function mockDeleteService(): DocumentService
+beforeEach(function () {
+    config(['services.openai.vector_store_id' => 'vs-test-id']);
+});
+
+function mockDeleteClient(): ClientContract
 {
-    $mock = Mockery::mock(DocumentService::class);
-    $mock->shouldReceive('removeFromVectorStore')->once();
-    $mock->shouldReceive('deleteFile')->once();
+    $filesResource = Mockery::mock(FilesContract::class);
+    $filesResource->shouldReceive('delete')->andReturn(DeleteResponse::fake());
 
-    return $mock;
+    $vsFilesResource = Mockery::mock(VectorStoresFilesContract::class);
+    $vsFilesResource->shouldReceive('delete')->andReturn(VectorStoreFileDeleteResponse::fake());
+
+    $vsResource = Mockery::mock(VectorStoresContract::class);
+    $vsResource->shouldReceive('files')->andReturn($vsFilesResource);
+
+    $client = Mockery::mock(ClientContract::class);
+    $client->shouldReceive('files')->andReturn($filesResource);
+    $client->shouldReceive('vectorStores')->andReturn($vsResource);
+
+    return $client;
 }
 
 it('removes the file from the OpenAI Vector Store via DocumentService', function () {
@@ -22,10 +40,19 @@ it('removes the file from the OpenAI Vector Store via DocumentService', function
         'vector_store_file_id' => 'vsf-abc',
     ]);
 
-    $mock = Mockery::mock(DocumentService::class);
-    $mock->shouldReceive('removeFromVectorStore')->once()->with('vsf-abc');
-    $mock->shouldReceive('deleteFile')->once();
-    $this->app->instance(DocumentService::class, $mock);
+    $filesResource = Mockery::mock(FilesContract::class);
+    $filesResource->shouldReceive('delete')->andReturn(DeleteResponse::fake());
+
+    $vsFilesResource = Mockery::mock(VectorStoresFilesContract::class);
+    $vsFilesResource->shouldReceive('delete')->once()->with('vs-test-id', 'vsf-abc')->andReturn(VectorStoreFileDeleteResponse::fake());
+
+    $vsResource = Mockery::mock(VectorStoresContract::class);
+    $vsResource->shouldReceive('files')->andReturn($vsFilesResource);
+
+    $client = Mockery::mock(ClientContract::class);
+    $client->shouldReceive('files')->andReturn($filesResource);
+    $client->shouldReceive('vectorStores')->andReturn($vsResource);
+    $this->app->instance(ClientContract::class, $client);
 
     $this->artisan('docs:delete', ['document_id' => $doc->id])->assertSuccessful();
 });
@@ -37,10 +64,19 @@ it('deletes the file from the OpenAI Files API via DocumentService', function ()
         'vector_store_file_id' => 'vsf-xyz',
     ]);
 
-    $mock = Mockery::mock(DocumentService::class);
-    $mock->shouldReceive('removeFromVectorStore')->once();
-    $mock->shouldReceive('deleteFile')->once()->with('file-xyz');
-    $this->app->instance(DocumentService::class, $mock);
+    $filesResource = Mockery::mock(FilesContract::class);
+    $filesResource->shouldReceive('delete')->once()->with('file-xyz')->andReturn(DeleteResponse::fake());
+
+    $vsFilesResource = Mockery::mock(VectorStoresFilesContract::class);
+    $vsFilesResource->shouldReceive('delete')->andReturn(VectorStoreFileDeleteResponse::fake());
+
+    $vsResource = Mockery::mock(VectorStoresContract::class);
+    $vsResource->shouldReceive('files')->andReturn($vsFilesResource);
+
+    $client = Mockery::mock(ClientContract::class);
+    $client->shouldReceive('files')->andReturn($filesResource);
+    $client->shouldReceive('vectorStores')->andReturn($vsResource);
+    $this->app->instance(ClientContract::class, $client);
 
     $this->artisan('docs:delete', ['document_id' => $doc->id])->assertSuccessful();
 });
@@ -51,7 +87,7 @@ it('soft-deletes the document record — deleted_at is populated', function () {
         'openai_file_id' => 'file-abc',
         'vector_store_file_id' => 'vsf-abc',
     ]);
-    $this->app->instance(DocumentService::class, mockDeleteService());
+    $this->app->instance(ClientContract::class, mockDeleteClient());
 
     $this->artisan('docs:delete', ['document_id' => $doc->id])->assertSuccessful();
 
@@ -64,7 +100,7 @@ it('writes a document.deleted audit_log record', function () {
         'openai_file_id' => 'file-abc',
         'vector_store_file_id' => 'vsf-abc',
     ]);
-    $this->app->instance(DocumentService::class, mockDeleteService());
+    $this->app->instance(ClientContract::class, mockDeleteClient());
 
     $this->artisan('docs:delete', ['document_id' => $doc->id]);
 

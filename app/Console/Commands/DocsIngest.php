@@ -2,10 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Enums\AuditAction;
-use App\Enums\AuditEntityType;
 use App\Enums\DocumentStatus;
-use App\Models\AuditLog;
 use App\Models\Document;
 use App\Services\DocumentService;
 use Illuminate\Console\Attributes\Description;
@@ -48,49 +45,16 @@ class DocsIngest extends Command
             'uploaded_by' => get_current_user() ?: 'cli',
         ]);
 
-        try {
-            $openaiFileId = $docs->uploadFile($path, $mimeType);
-            $document->update([
-                'openai_file_id' => $openaiFileId,
-                'status' => DocumentStatus::Uploading,
-            ]);
+        $docs->ingest($document, $path, $mimeType);
 
-            $vectorStoreFileId = $docs->addToVectorStore($openaiFileId);
-            $document->update(['vector_store_file_id' => $vectorStoreFileId]);
-
-            $indexStatus = $docs->pollIndexingStatus($vectorStoreFileId);
-            if ($indexStatus !== 'completed') {
-                throw new \RuntimeException('Indexing failed or timed out.');
-            }
-
-            $document->update(['status' => DocumentStatus::Indexed]);
-            AuditLog::create([
-                'action' => AuditAction::DocumentUploaded,
-                'entity_type' => AuditEntityType::Document,
-                'entity_id' => $document->id,
-                'payload' => $document->refresh()->toArray(),
-                'performed_by' => get_current_user() ?: 'cli',
-            ]);
-
+        if ($document->refresh()->status === DocumentStatus::Indexed) {
             $this->info("Document #{$document->id} successfully indexed.");
 
             return Command::SUCCESS;
-        } catch (\Throwable $e) {
-            $document->update([
-                'status' => DocumentStatus::Error,
-                'error_message' => $e->getMessage(),
-            ]);
-            AuditLog::create([
-                'action' => AuditAction::DocumentError,
-                'entity_type' => AuditEntityType::Document,
-                'entity_id' => $document->id,
-                'payload' => $document->refresh()->toArray(),
-                'performed_by' => get_current_user() ?: 'cli',
-            ]);
-
-            $this->error("Indexing error: {$e->getMessage()}");
-
-            return Command::FAILURE;
         }
+
+        $this->error("Indexing error: {$document->error_message}");
+
+        return Command::FAILURE;
     }
 }

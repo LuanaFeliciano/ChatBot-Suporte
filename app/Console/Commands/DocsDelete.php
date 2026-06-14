@@ -2,9 +2,6 @@
 
 namespace App\Console\Commands;
 
-use App\Enums\AuditAction;
-use App\Enums\AuditEntityType;
-use App\Models\AuditLog;
 use App\Models\Document;
 use App\Services\DocumentService;
 use Illuminate\Console\Attributes\Description;
@@ -31,17 +28,7 @@ class DocsDelete extends Command
             return Command::FAILURE;
         }
 
-        $docs->removeFromVectorStore($document->vector_store_file_id);
-        $docs->deleteFile($document->openai_file_id);
-        $document->delete();
-
-        AuditLog::create([
-            'action' => AuditAction::DocumentDeleted,
-            'entity_type' => AuditEntityType::Document,
-            'entity_id' => $document->id,
-            'payload' => $document->toArray(),
-            'performed_by' => get_current_user() ?: 'cli',
-        ]);
+        $docs->delete($document);
 
         $this->info("Document #{$id} removed successfully.");
 
