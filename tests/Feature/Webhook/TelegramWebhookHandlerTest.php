@@ -2,16 +2,19 @@
 
 use App\Ai\Agents\SupportAgent;
 use App\Channels\Telegram\TelegramWebhookHandler;
+use App\Enums\DocumentStatus;
 use App\Models\BotMessage;
 use App\Models\Channel;
+use App\Models\Document;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Redis;
 
 beforeEach(function () {
     SupportAgent::fake(['Resposta de teste.']);
-    Http::fake(['https://api.telegram.org/*' => Http::response(['ok' => true])]);
+    Http::fake(['https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 555]])]);
     Redis::flushdb();
     Channel::create(['name' => 'Telegram', 'slug' => 'telegram', 'is_active' => true]);
+    Document::factory()->create(['status' => DocumentStatus::Indexed]);
 });
 
 it('ignores payloads with no message key', function () {

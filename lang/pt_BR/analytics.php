@@ -40,4 +40,11 @@ return [
         'no_recent_updates' => 'Nenhuma atualização recente.',
     ],
 
+    'feedback' => [
+        'heading' => 'Resumo de feedback',
+        'description' => '👍 :positive · 👎 :negative · — :unrated',
+        'positive' => '👍 Resolvido',
+        'negative' => '👎 Não resolvido',
+    ],
+
 ];

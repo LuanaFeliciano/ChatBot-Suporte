@@ -65,12 +65,17 @@ class ProcessChatMessage implements ShouldQueue
             $adapter->sendTypingAction($this->channelUser);
 
             $answer = $chat->process($this->canal, $this->channelUser, $userName, $question);
+            $botMessage = $chat->lastMessage();
 
             // Re-show typing so the indicator is visible right before the reply arrives
             $adapter->sendTypingAction($this->channelUser);
             $this->humanDelay($answer);
 
-            $adapter->sendReply($this->channelUser, $answer);
+            $channelMessageId = $adapter->sendReply($this->channelUser, $answer, $botMessage?->id);
+
+            if ($botMessage) {
+                $botMessage->update(['channel_message_id' => $channelMessageId]);
+            }
         } finally {
             $lock->release();
         }

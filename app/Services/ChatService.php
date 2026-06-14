@@ -10,6 +10,8 @@ use App\Models\Document;
 
 class ChatService
 {
+    private ?BotMessage $lastMessage = null;
+
     public function __construct(
         private readonly SessionService $session,
     ) {}
@@ -66,7 +68,7 @@ class ChatService
 
         $channelId = Channel::where('slug', $canal)->value('id');
 
-        BotMessage::create([
+        $this->lastMessage = BotMessage::create([
             'channel_id' => $channelId,
             'channel_user' => $channelUser,
             'user_name' => $userName,
@@ -74,8 +76,24 @@ class ChatService
             'answer' => $answer,
             'response_ms' => $responseMs,
             'was_fresh_session' => $freshSession,
+            'file_search_hit_count' => $agent->fileSearchHitCount($response),
         ]);
 
         return $answer;
+    }
+
+    /** The BotMessage created by the most recent process() call, or null for greetings/setup replies. */
+    public function lastMessage(): ?BotMessage
+    {
+        return $this->lastMessage;
+    }
+
+    public function recordFeedback(BotMessage $message, bool $wasHelpful): void
+    {
+        if ($message->was_helpful !== null) {
+            return;
+        }
+
+        $message->update(['was_helpful' => $wasHelpful]);
     }
 }

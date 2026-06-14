@@ -13,6 +13,7 @@ use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Messages\Message;
 use Laravel\Ai\Promptable;
 use Laravel\Ai\Providers\Tools\FileSearch;
+use Laravel\Ai\Responses\AgentResponse;
 
 #[MaxSteps(10)]
 class SupportAgent implements Agent, Conversational, HasProviderOptions, HasTools
@@ -139,5 +140,10 @@ class SupportAgent implements Agent, Conversational, HasProviderOptions, HasTool
             Lab::OpenAI => ['reasoning' => ['effort' => 'high']],
             default => [],
         };
+    }
+
+    public function fileSearchHitCount(AgentResponse $response): int
+    {
+        return $response->meta->citations->count();
     }
 }

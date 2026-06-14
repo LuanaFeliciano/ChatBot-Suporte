@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Enums\PermissionName;
 use App\Filament\Widgets\AiPerformanceWidget;
 use App\Filament\Widgets\DailyMessageVolumeChart;
+use App\Filament\Widgets\FeedbackSummaryWidget;
 use App\Filament\Widgets\KnowledgeBaseHealthWidget;
 use App\Filament\Widgets\UsageOverviewWidget;
 use BackedEnum;
@@ -74,6 +75,7 @@ class Dashboard extends BaseDashboard
             DailyMessageVolumeChart::class,
             AiPerformanceWidget::class,
             KnowledgeBaseHealthWidget::class,
+            FeedbackSummaryWidget::class,
         ];
     }
 }

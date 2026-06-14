@@ -5,6 +5,7 @@ namespace App\Filament\Resources\BotMessages\Schemas;
 use App\Models\BotMessage;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Schema;
+use Filament\Support\Icons\Heroicon;
 
 class BotMessageInfolist
 {
@@ -38,7 +39,22 @@ class BotMessageInfolist
                     ->columnSpanFull(),
                 TextEntry::make('was_helpful')
                     ->label(__('conversations.fields.was_helpful'))
-                    ->placeholder('-'),
+                    ->badge()
+                    ->formatStateUsing(fn (?bool $state): string => match ($state) {
+                        true => __('conversations.filters.resolved'),
+                        false => __('conversations.filters.not_resolved'),
+                        null => __('conversations.filters.unrated'),
+                    })
+                    ->icon(fn (?bool $state): Heroicon => match ($state) {
+                        true => Heroicon::OutlinedHandThumbUp,
+                        false => Heroicon::OutlinedHandThumbDown,
+                        null => Heroicon::OutlinedMinus,
+                    })
+                    ->color(fn (?bool $state): string => match ($state) {
+                        true => 'success',
+                        false => 'danger',
+                        null => 'gray',
+                    }),
                 TextEntry::make('response_ms')
                     ->label(__('conversations.fields.response_ms'))
                     ->state(fn (BotMessage $record): ?string => $record->formatResponseMs())

@@ -3,12 +3,16 @@
 namespace App\Models;
 
 use App\Ai\Agents\SupportAgent;
+use App\Enums\DocumentStatus;
+use App\Observers\BotMessageObserver;
 use Database\Factories\BotMessageFactory;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+#[ObservedBy([BotMessageObserver::class])]
 class BotMessage extends Model
 {
     /** @use HasFactory<BotMessageFactory> */
@@ -23,6 +27,9 @@ class BotMessage extends Model
         'response_ms',
         'was_helpful',
         'was_fresh_session',
+        'file_search_hit_count',
+        'question_normalized',
+        'channel_message_id',
     ];
 
     protected function casts(): array
@@ -30,6 +37,7 @@ class BotMessage extends Model
         return [
             'was_helpful' => 'boolean',
             'was_fresh_session' => 'boolean',
+            'file_search_hit_count' => 'integer',
         ];
     }
 
@@ -46,6 +54,26 @@ class BotMessage extends Model
     public function scopeEscalated(Builder $query): Builder
     {
         return $query->where('answer', 'like', '%'.SupportAgent::ESCALATION_PHRASE.'%');
+    }
+
+    public function scopeNoDocumentIndexed(Builder $query): Builder
+    {
+        return $query->whereNotExists(function ($query) {
+            $query->select('id')
+                ->from('documents')
+                ->where('status', DocumentStatus::Indexed)
+                ->whereColumn('created_at', '<=', 'bot_messages.created_at');
+        });
+    }
+
+    public function scopeLowConfidence(Builder $query): Builder
+    {
+        return $query
+            ->where(function (Builder $query) {
+                $query->whereNull('file_search_hit_count')
+                    ->orWhere('file_search_hit_count', 0);
+            })
+            ->whereNot(fn (Builder $query) => $query->escalated());
     }
 
     public function formatResponseMs(): ?string

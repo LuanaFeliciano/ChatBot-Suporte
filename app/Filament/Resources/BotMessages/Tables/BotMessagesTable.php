@@ -8,6 +8,7 @@ use Filament\Actions\Action;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\Summarizers\Average;
 use Filament\Tables\Columns\Summarizers\Summarizer;
 use Filament\Tables\Columns\TextColumn;
@@ -60,6 +61,18 @@ class BotMessagesTable
                             })
                             ->formatStateUsing(fn (?float $state): ?string => $state !== null ? number_format($state / 1000, 1).'s' : null),
                     ]),
+                IconColumn::make('was_helpful')
+                    ->label(__('conversations.fields.was_helpful'))
+                    ->icon(fn (?bool $state): Heroicon => match ($state) {
+                        true => Heroicon::OutlinedHandThumbUp,
+                        false => Heroicon::OutlinedHandThumbDown,
+                        null => Heroicon::OutlinedMinus,
+                    })
+                    ->color(fn (?bool $state): string => match ($state) {
+                        true => 'success',
+                        false => 'danger',
+                        null => 'gray',
+                    }),
             ])
             ->filters([
                 SelectFilter::make('channel')

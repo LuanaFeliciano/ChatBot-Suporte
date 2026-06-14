@@ -1,8 +1,10 @@
 <?php
 
 use App\Ai\Agents\SupportAgent;
+use App\Enums\DocumentStatus;
 use App\Models\BotMessage;
 use App\Models\Channel;
+use App\Models\Document;
 use App\Services\ChatService;
 use App\Services\SessionService;
 use Illuminate\Support\Facades\Redis;
@@ -11,6 +13,7 @@ beforeEach(function () {
     SupportAgent::fake(['Resposta do agente.']);
     Redis::flushdb();
     Channel::create(['name' => 'Telegram', 'slug' => 'telegram', 'is_active' => true]);
+    Document::factory()->create(['status' => DocumentStatus::Indexed]);
 });
 
 it('instantiates SupportAgent with freshSession=true when no Redis session exists', function () {
