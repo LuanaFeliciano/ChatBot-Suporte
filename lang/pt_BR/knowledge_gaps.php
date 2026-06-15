@@ -44,4 +44,12 @@ return [
         'unrated' => 'Sem avaliação',
     ],
 
+    'recommendations' => [
+        'new_documentation' => 'Criar documentação nova',
+        'review_content' => 'Revisar conteúdo existente',
+        'ok' => 'Nenhuma ação necessária',
+    ],
+
+    'indexing_errors' => ':count documento(s) com erro de indexação — revise a base de conhecimento.',
+
 ];

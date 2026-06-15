@@ -34,8 +34,7 @@ class ChatService
 
     private function cleanAnswer(string $answer): string
     {
-        // Strip OpenAI File Search citations wrapped in Unicode private-use sentinels (U+E200…U+E201)
-        $answer = preg_replace('/\x{E200}filecite\x{E202}[\w]+\x{E201}/u', '', $answer);
+        $answer = preg_replace(SupportAgent::FILE_CITATION_PATTERN, '', $answer);
         // Fallback: strip bare filecite markers if sentinels were already stripped upstream
         $answer = preg_replace('/filecite\w+/', '', $answer ?? '');
 

@@ -44,4 +44,12 @@ return [
         'unrated' => 'Unrated',
     ],
 
+    'recommendations' => [
+        'new_documentation' => 'Create new documentation',
+        'review_content' => 'Review existing content',
+        'ok' => 'No action needed',
+    ],
+
+    'indexing_errors' => ':count document(s) with indexing errors — review the knowledge base.',
+
 ];

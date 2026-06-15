@@ -66,13 +66,20 @@ class BotMessage extends Model
         });
     }
 
+    /**
+     * A response is "low confidence" when the agent answered without escalating
+     * (i.e. it appeared confident) but the end user reported it as not helpful.
+     *
+     * `file_search_hit_count` is intentionally NOT used here: the current
+     * `laravel/ai` SDK does not expose `file_citation` annotations from the
+     * OpenAI File Search tool, so the column is always 0/null regardless of
+     * whether relevant documents were actually found. This rule can be
+     * revisited once the SDK exposes that data.
+     */
     public function scopeLowConfidence(Builder $query): Builder
     {
         return $query
-            ->where(function (Builder $query) {
-                $query->whereNull('file_search_hit_count')
-                    ->orWhere('file_search_hit_count', 0);
-            })
+            ->where('was_helpful', false)
             ->whereNot(fn (Builder $query) => $query->escalated());
     }
 

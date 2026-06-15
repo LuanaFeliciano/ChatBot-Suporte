@@ -69,6 +69,9 @@ class SupportAgent implements Agent, Conversational, HasProviderOptions, HasTool
 
     public const ESCALATION_PHRASE = 'Se o problema continuar, entre em contato pelo link informado.';
 
+    /** Matches OpenAI File Search citations wrapped in Unicode private-use sentinels (U+E200…U+E201). */
+    public const FILE_CITATION_PATTERN = '/\x{E200}filecite\x{E202}[\w]+\x{E201}/u';
+
     public const SYSTEM_PROMPT_PART_2 = <<<'PROMPT'
     " — seguido apenas pelo link. Não solicite nenhuma informação adicional.
 
@@ -144,6 +147,6 @@ class SupportAgent implements Agent, Conversational, HasProviderOptions, HasTool
 
     public function fileSearchHitCount(AgentResponse $response): int
     {
-        return $response->meta->citations->count();
+        return (int) preg_match_all(self::FILE_CITATION_PATTERN, $response->text);
     }
 }

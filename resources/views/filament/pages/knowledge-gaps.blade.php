@@ -1,5 +1,15 @@
 <x-filament-panels::page>
     @php($feedbackCounts = $this->feedbackCounts())
+    @php($indexingErrorCount = $this->indexingErrorCount())
+
+    @if ($indexingErrorCount > 0)
+        <x-filament::section>
+            <a href="{{ \App\Filament\Resources\Documents\DocumentResource::getUrl('index') }}" class="text-sm font-medium text-danger-600 hover:underline dark:text-danger-400">
+                ⚠️ {{ __('knowledge_gaps.indexing_errors', ['count' => $indexingErrorCount]) }}
+            </a>
+        </x-filament::section>
+    @endif
+
     <x-filament::section>
         <x-slot name="heading">
             {{ __('knowledge_gaps.feedback.heading') }}

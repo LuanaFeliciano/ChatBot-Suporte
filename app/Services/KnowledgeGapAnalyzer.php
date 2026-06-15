@@ -2,78 +2,37 @@
 
 namespace App\Services;
 
-use App\Enums\DocumentStatus;
 use App\Filament\Resources\Documents\DocumentResource;
-use App\Models\Document;
 
 class KnowledgeGapAnalyzer
 {
-    private const STOP_WORDS = [
-        'como', 'para', 'quando', 'onde', 'porque', 'qual', 'quais', 'quem',
-        'uma', 'um', 'umas', 'uns', 'meu', 'minha', 'meus', 'minhas',
-        'seu', 'sua', 'seus', 'suas', 'isso', 'esse', 'essa', 'este', 'esta',
-        'nao', 'sim', 'com', 'sem', 'por', 'mais', 'menos', 'tem', 'ter',
-        'fazer', 'faco', 'app', 'aplicativo', 'sobre', 'pode', 'posso',
-        'preciso', 'gostaria', 'voce', 'estou', 'esta',
-    ];
-
     /**
-     * @return array{label: string, document: ?Document, route: ?string}
+     * `escalatedCount` (not `file_search_hit_count`) drives the "new documentation"
+     * recommendation: the current `laravel/ai` SDK does not expose `file_citation`
+     * annotations from the OpenAI File Search tool, so the hit count is always
+     * 0/null and is not a reliable signal of missing content. Escalation, however,
+     * is a signal fully controlled by this app's own system prompt. This can be
+     * revisited once the SDK exposes File Search citation data.
+     *
+     * @return array{label: string, route: ?string}
      */
-    public function recommend(string $representativeQuestion): array
+    public function recommend(int $occurrences, int $escalatedCount, bool $hasNegativeFeedback): array
     {
-        $document = $this->findRelatedDocument($representativeQuestion);
+        $escalationRatio = $escalatedCount / $occurrences;
 
         return match (true) {
-            $document === null => [
-                'label' => 'New documentation needed',
-                'document' => null,
-                'route' => null,
+            $escalationRatio >= (float) config('suporte.knowledge_gap_escalation_threshold') => [
+                'label' => 'new_documentation',
+                'route' => DocumentResource::getUrl('create'),
             ],
-            $document->status === DocumentStatus::Error => [
-                'label' => 'Fix indexing error',
-                'document' => $document,
-                'route' => DocumentResource::getUrl('view', ['record' => $document]),
-            ],
-            default => [
-                'label' => 'Review existing content — possibly outdated',
-                'document' => $document,
+            $hasNegativeFeedback => [
+                'label' => 'review_content',
                 'route' => DocumentResource::getUrl('index'),
             ],
+            default => [
+                'label' => 'ok',
+                'route' => null,
+            ],
         };
-    }
-
-    private function findRelatedDocument(string $representativeQuestion): ?Document
-    {
-        $keywords = $this->keywords($representativeQuestion);
-
-        if ($keywords === []) {
-            return null;
-        }
-
-        return Document::query()
-            ->get()
-            ->first(function (Document $document) use ($keywords): bool {
-                $haystack = mb_strtolower($document->name.' '.($document->attributes['module'] ?? ''));
-
-                foreach ($keywords as $keyword) {
-                    if (str_contains($haystack, $keyword)) {
-                        return true;
-                    }
-                }
-
-                return false;
-            });
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function keywords(string $question): array
-    {
-        return collect(explode(' ', $question))
-            ->filter(fn (string $word): bool => mb_strlen($word) >= 4 && ! in_array($word, self::STOP_WORDS, true))
-            ->values()
-            ->all();
     }
 }

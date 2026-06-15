@@ -2,9 +2,12 @@
 
 namespace App\Filament\Pages;
 
+use App\Ai\Agents\SupportAgent;
+use App\Enums\DocumentStatus;
 use App\Enums\PermissionName;
 use App\Filament\Resources\BotMessages\BotMessageResource;
 use App\Models\BotMessage;
+use App\Models\Document;
 use App\Services\KnowledgeGapAnalyzer;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -72,6 +75,11 @@ class KnowledgeGaps extends Page implements HasTable
             'negative' => BotMessage::where('was_helpful', false)->count(),
             'unrated' => BotMessage::whereNull('was_helpful')->count(),
         ];
+    }
+
+    public function indexingErrorCount(): int
+    {
+        return Document::where('status', DocumentStatus::Error)->count();
     }
 
     /**
@@ -169,6 +177,7 @@ class KnowledgeGaps extends Page implements HasTable
                         DB::raw('max(created_at) as last_seen'),
                         DB::raw('count(distinct channel_user) as distinct_users'),
                         DB::raw('coalesce(bool_or(was_helpful = false), false)::int as has_negative_feedback'),
+                        DB::raw("count(*) filter (where answer like '%".str_replace("'", "''", SupportAgent::ESCALATION_PHRASE)."%') as escalated_count"),
                     ])
                     ->whereNotNull('question_normalized')
                     ->groupBy('question_normalized')
@@ -200,8 +209,8 @@ class KnowledgeGaps extends Page implements HasTable
                     ->sortable(),
                 TextColumn::make('recommendation')
                     ->label(__('knowledge_gaps.fields.recommendation'))
-                    ->state(fn (BotMessage $record): string => $analyzer->recommend($record->question_normalized)['label'])
-                    ->url(fn (BotMessage $record): ?string => $analyzer->recommend($record->question_normalized)['route'])
+                    ->state(fn (BotMessage $record): string => __('knowledge_gaps.recommendations.'.$analyzer->recommend($record->occurrences, $record->escalated_count, (bool) $record->has_negative_feedback)['label']))
+                    ->url(fn (BotMessage $record): ?string => $analyzer->recommend($record->occurrences, $record->escalated_count, (bool) $record->has_negative_feedback)['route'])
                     ->badge(),
             ])
             ->recordActions([
