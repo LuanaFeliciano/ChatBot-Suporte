@@ -1,216 +1,101 @@
 # Suporte APP
 
-Chatbot de suporte técnico via Telegram com arquitetura RAG. Responde perguntas dos usuários com base exclusivamente em documentos indexados em um OpenAI Vector Store.
+Chatbot de suporte técnico via **Telegram** com arquitetura **RAG**: responde às
+dúvidas dos usuários com base exclusivamente em documentos indexados em um OpenAI
+Vector Store. Acompanha um **painel administrativo** (Filament) para gerenciar a
+base de conhecimento, explorar conversas, analisar métricas e identificar lacunas
+de conhecimento.
 
-**Stack:** Laravel 13 · Laravel AI SDK · OpenAI (GPT + Vector Store) · Redis · PostgreSQL · Telegram Bot API
+**Stack:** Laravel 13 · PHP 8.3+ · Filament v5 · Laravel AI SDK (`laravel/ai`) ·
+OpenAI (modelo + Vector Store) · Redis · PostgreSQL · Telegram Bot API · Laravel Sail
 
----
+## Principais funcionalidades
 
-## Fluxo de uma mensagem
+- **Atendimento RAG** no Telegram com File Search no Vector Store e histórico de
+  contexto (últimas 10 trocas, janela de 24h).
+- **Agrupamento de mensagens** (debounce de 3s), indicador de "digitando" e atraso
+  humanizado antes da resposta.
+- **Feedback 👍/👎** em cada resposta, com edição da mensagem.
+- **Saudação** com resposta fixa e **fallback** quando a base ainda não tem
+  documentos indexados.
+- **Gestão da base de conhecimento** por CLI e pelo painel web (upload,
+  substituição atômica, reindexação e remoção).
+- **Painel administrativo** com RBAC, explorador de conversas, dashboard de
+  Analytics, página de Lacunas de Conhecimento, logs de auditoria e interface
+  bilíngue (pt-BR / inglês).
 
-```
-Usuário (Telegram)
-  → POST /webhook/telegram
-  → Validação do secret token (middleware)
-  → Verificação de idempotência (Redis, TTL 24h)
-  → Verificação de rate limit (Redis, 10 msg/min por usuário)
-  → TelegramWebhookHandler empilha a mensagem em um buffer Redis e despacha ProcessChatMessage (fila "chat", debounce de 3s)
-  → ProcessChatMessage agrupa as mensagens pendentes do usuário e chama o ChatService
-  → ChatService: SupportAgent — FileSearch no Vector Store + histórico das últimas 10 mensagens
-  → Persiste conversa (PostgreSQL)
-  → Envia indicador de "digitando" e a resposta ao usuário
-```
+## Requisitos
 
----
-
-## Pré-requisitos
-
-- Docker e Docker Compose
+- Docker e Docker Compose (Laravel Sail)
 - Conta na OpenAI com um Vector Store criado
 - Bot do Telegram criado via [@BotFather](https://t.me/botfather)
+- **PostgreSQL** (necessário para o Analytics e a página de Lacunas de Conhecimento)
 
----
+## Instalação rápida
 
-## Setup local
+> Todos os comandos rodam dentro do Sail. Detalhes em [docs_readme/instalacao.md](docs_readme/instalacao.md).
 
 ```bash
-# 1. Clone e instale as dependências
-git clone <repo>
-cd chatbot-suporte
-composer install
-
-# 2. Configure o ambiente
 cp .env.example .env
-# Preencha as variáveis obrigatórias (ver seção abaixo)
+# Preencha OPENAI_*, TELEGRAM_*, ADMIN_EMAIL/ADMIN_PASSWORD
 
-# 3. Gere a chave da aplicação
-./vendor/bin/sail artisan key:generate
-
-# 4. Suba os containers (inclui Redis)
 ./vendor/bin/sail up -d
-
-# 5. Rode as migrations
+./vendor/bin/sail artisan key:generate
 ./vendor/bin/sail artisan migrate
-
-# 6. Inicie o worker da fila (necessário para processar as mensagens)
-./vendor/bin/sail artisan queue:work redis --queue=chat,default
+./vendor/bin/sail artisan db:seed          # permissões, papéis, admin e canais
+./vendor/bin/sail npm install && ./vendor/bin/sail npm run build
+./vendor/bin/sail artisan queue:work --queue=chat,default
 ```
 
-### Registrar o webhook do Telegram
-
-Para desenvolvimento local, exponha a aplicação com [ngrok](https://ngrok.com) ou similar:
+Registre o webhook (expondo a app com ngrok ou similar):
 
 ```bash
-ngrok http 8080
+./vendor/bin/sail artisan telegram:webhook:set https://<sua-url-publica>
 ```
 
-Com a URL pública em mãos, registre o webhook via Artisan (lê `TELEGRAM_BOT_TOKEN` e `TELEGRAM_WEBHOOK_SECRET` do `.env` automaticamente):
+O painel fica em `/admin` — entre com o usuário criado pelo seeder.
 
-```bash
-./vendor/bin/sail artisan telegram:webhook:set https://<sua-url-ngrok>
-```
+## Configuração
 
-O comando monta a URL final como `https://<sua-url-ngrok>/api/webhook/telegram` e confirma o registro.
+Variáveis essenciais: `OPENAI_API_KEY`, `OPENAI_VECTOR_STORE_ID`, `OPENAI_MODEL`,
+`TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `SUPPORT_TICKET_URL`,
+`ADMIN_EMAIL`, `ADMIN_PASSWORD`, além de `DB_*`, `QUEUE_CONNECTION`, `REDIS_*`,
+`CACHE_STORE`/`CACHE_LIMITER` e `APP_LOCALE`.
 
-### Remover o webhook do Telegram
+Lista completa e arquivos de configuração: [docs_readme/configuracao.md](docs_readme/configuracao.md).
 
-```bash
-./vendor/bin/sail artisan telegram:webhook:remove
-```
----
+## Execução local
 
-## Variáveis de ambiente
-
-| Variável | Descrição |
-|---|---|
-| `TELEGRAM_BOT_TOKEN` | Token do bot obtido via @BotFather |
-| `TELEGRAM_WEBHOOK_SECRET` | Secret para validar requisições recebidas do Telegram |
-| `OPENAI_API_KEY` | Chave da API da OpenAI |
-| `OPENAI_VECTOR_STORE_ID` | ID do Vector Store onde os documentos são indexados |
-| `OPENAI_MODEL` | Modelo da OpenAI a utilizar (ex: `gpt-4o`) |
-| `SUPPORT_TICKET_URL` | URL do suporte humano — exibida quando o bot não encontra resposta |
-| `REDIS_HOST` / `REDIS_PORT` | Conexão com Redis (sessões, idempotência, buffer de mensagens) |
-| `CACHE_STORE` | Cache store padrão da aplicação (default: `database`) |
-| `CACHE_LIMITER` | Cache store usado pelo `RateLimiter` (rate limit do Telegram). Default: `redis` |
-| `DB_CONNECTION` e demais `DB_*` | Conexão com o banco de dados |
-
----
-
-## Gerenciamento da base de conhecimento
-
-Todos os comandos são executados via Artisan. Formatos aceitos: **PDF** e **texto plano**.
-
-### Indexar um documento
-
-```bash
-./vendor/bin/sail artisan docs:ingest caminho/para/arquivo.pdf \
-  --name="Nome amigável" \
-  --module="financeiro" \
-  --doc-version="2.1"
-```
-
-O processo cria o registro local, faz upload para a OpenAI Files API, adiciona ao Vector Store e aguarda a indexação (máximo 60s). Em caso de falha, o erro é registrado no `audit_logs`.
-
-### Atualizar um documento
-
-```bash
-./vendor/bin/sail artisan docs:update {id} caminho/para/novo-arquivo.pdf
-```
-
-Substitui o arquivo indexado de forma atômica: indexa a nova versão primeiro e só remove a antiga após sucesso — sem janela de indisponibilidade. Os metadados (`name`, `module`, `doc-version`) são herdados do documento original por padrão; use as mesmas opções do `docs:ingest` para sobrescrever:
-
-```bash
-./vendor/bin/sail artisan docs:update {id} novo-arquivo.pdf \
-  --name="Nome atualizado" \
-  --doc-version="2.0"
-```
-
-O registro antigo é **soft-deleted** com seus IDs preservados. Um novo registro é criado e seu ID é exibido ao final.
-
-### Listar documentos
-
-```bash
-./vendor/bin/sail artisan docs:list
-```
-
-Exibe todos os documentos (incluindo removidos) com ID, nome, status, módulo, versão, tamanho e data.
-
-### Verificar status de um documento
-
-```bash
-./vendor/bin/sail artisan docs:status {id}
-```
-
-Mostra o status atual (`pending`, `uploading`, `indexed`, `error`) e, em caso de erro, a mensagem detalhada.
-
-### Remover um documento
-
-```bash
-./vendor/bin/sail artisan docs:delete {id}
-```
-
-Remove o arquivo do Vector Store e da OpenAI Files API. O registro local é **soft-deleted** — o histórico de auditoria é preservado.
-
----
-
-## Arquitetura
-
-### Componentes principais
-
-| Componente | Responsabilidade |
-|---|---|
-| `TelegramController` | Recebe o webhook e delega ao `TelegramWebhookHandler` |
-| `ValidateTelegramWebhook` | Middleware que valida o secret token em toda requisição |
-| `TelegramWebhookHandler` | Verifica idempotência e rate limit, empilha a mensagem em um buffer Redis e despacha `ProcessChatMessage` (debounce de 3s) |
-| `ProcessChatMessage` | Job da fila `chat` — agrupa as mensagens pendentes do usuário, chama o `ChatService`, simula "digitando" e envia a resposta via `TelegramAdapter` |
-| `IdempotencyService` | Lock Redis (`SET NX`, TTL 24h) — evita duplicatas em retries do Telegram |
-| `RateLimitService` | `RateLimiter::attempt()` — máximo 10 mensagens/minuto por usuário. Backend definido por `CACHE_LIMITER` (default `redis`) |
-| `ChatService` | Verifica sessão, instancia o `SupportAgent`, persiste a conversa |
-| `SessionService` | Janela de contexto de 24h por usuário via Redis (TTL renovado a cada mensagem) |
-| `SupportAgent` | Agente Laravel AI com `FileSearch` no Vector Store e histórico das últimas 10 trocas |
-| `DocumentService` | Pipeline de upload e indexação na OpenAI |
-
-### Cache e Redis
-
-O Redis é usado de duas formas independentes na aplicação:
-
-1. **Acesso direto via facade `Redis`** (conexão `default`, Redis DB 0) — não passa pelo sistema de cache do Laravel e não é afetado por `CACHE_STORE`/`CACHE_LIMITER`:
-   - `SessionService`: janela de contexto de 24h por usuário (`SETEX`/`EXISTS`).
-   - `IdempotencyService`: lock de deduplicação (`SET NX`, TTL 24h).
-   - `TelegramWebhookHandler`: buffer de mensagens pendentes (`RPUSH`/`INCR`, TTL 5min).
-
-2. **Cache store do Laravel** (`Cache` / `RateLimiter`), configurável via `.env`:
-   - `CACHE_STORE` (default `database`) — store padrão da aplicação (cache geral do Laravel).
-   - `CACHE_LIMITER` (default `redis`) — store usado por `RateLimitService` via `RateLimiter::attempt()`. Quando `redis`, usa a conexão Redis `cache` (DB 1, configurável via `REDIS_CACHE_DB`), separada da conexão `default` do item 1.
-
-Para trocar o backend do rate limit (ex: `database`, `array`), basta alterar `CACHE_LIMITER` — nenhuma alteração de código é necessária, pois `RateLimitService` usa apenas a facade `RateLimiter`, sem acoplamento a um driver específico.
-
----
-
-### Extensibilidade de canais
-
-O sistema foi desenhado para suportar múltiplos canais. Para adicionar WhatsApp (ou qualquer outro), basta implementar `ChannelAdapterInterface`:
-
-```php
-interface ChannelAdapterInterface
-{
-    public function extractMessage(array $payload): ?array;
-    public function sendReply(string $channelUser, string $message): void;
-}
-```
-
-Nenhuma alteração é necessária no `SupportAgent`, `ChatService` ou serviços de infraestrutura.
-
----
+- App + PostgreSQL + Redis: `./vendor/bin/sail up -d`
+- Worker da fila (obrigatório para processar mensagens): `./vendor/bin/sail artisan queue:work --queue=chat,default`
+- Build de assets: `./vendor/bin/sail npm run dev`
 
 ## Testes
 
 ```bash
 ./vendor/bin/sail artisan test --compact
-```
-
-Para filtrar um teste específico:
-
-```bash
+# filtrar:
 ./vendor/bin/sail artisan test --compact --filter=NomeDoTeste
 ```
+
+Mais detalhes em [docs_readme/testes.md](docs_readme/testes.md).
+
+## Documentação
+
+A documentação técnica completa está em [`docs_readme/`](docs_readme/README.md):
+
+| Documento | Conteúdo |
+|---|---|
+| [visao-geral.md](docs_readme/visao-geral.md) | Objetivo, funcionalidades e papéis |
+| [arquitetura.md](docs_readme/arquitetura.md) | Componentes, fluxo da mensagem, Redis/cache e banco |
+| [instalacao.md](docs_readme/instalacao.md) | Instalação completa via Sail |
+| [configuracao.md](docs_readme/configuracao.md) | Variáveis de ambiente e configs |
+| [base-de-conhecimento.md](docs_readme/base-de-conhecimento.md) | Ingestão e gestão de documentos |
+| [agentes-de-ia.md](docs_readme/agentes-de-ia.md) | `SupportAgent`, RAG e limitações |
+| [canais-e-mensageria.md](docs_readme/canais-e-mensageria.md) | Telegram, feedback, debounce e "digitando" |
+| [usuarios-e-permissoes.md](docs_readme/usuarios-e-permissoes.md) | RBAC, policies e auditoria |
+| [painel-administrativo.md](docs_readme/painel-administrativo.md) | Recursos do painel Filament |
+| [analytics-e-knowledge-gaps.md](docs_readme/analytics-e-knowledge-gaps.md) | Métricas e lacunas de conhecimento |
+| [internacionalizacao.md](docs_readme/internacionalizacao.md) | Idiomas e traduções |
+| [testes.md](docs_readme/testes.md) | Suíte Pest |
+| [troubleshooting.md](docs_readme/troubleshooting.md) | Problemas comuns |

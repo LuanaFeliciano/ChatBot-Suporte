@@ -9,6 +9,7 @@ enum PermissionName: string implements HasLabel
     case ManageUsers = 'manage-users';
     case ManageRoles = 'manage-roles';
     case ManageDocuments = 'manage-documents';
+    case ViewDocuments = 'view-documents';
     case ViewConversations = 'view-conversations';
     case ViewAnalytics = 'view-analytics';
     case ViewAuditLogs = 'view-audit-logs';

@@ -10,12 +10,12 @@ class DocumentPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->can(PermissionName::ManageDocuments);
+        return $user->canAny([PermissionName::ManageDocuments, PermissionName::ViewDocuments]);
     }
 
     public function view(User $user, Document $document): bool
     {
-        return $user->can(PermissionName::ManageDocuments);
+        return $user->canAny([PermissionName::ManageDocuments, PermissionName::ViewDocuments]);
     }
 
     public function create(User $user): bool

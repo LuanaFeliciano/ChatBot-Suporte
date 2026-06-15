@@ -4,6 +4,7 @@ namespace App\Providers\Filament;
 
 use App\Enums\Locale;
 use App\Filament\Pages\Dashboard as AnalyticsDashboard;
+use App\Filament\Widgets\DashboardOverviewWidget;
 use App\Http\Middleware\SetUserLocale;
 use Filament\Actions\Action;
 use Filament\Http\Middleware\Authenticate;
@@ -42,9 +43,9 @@ class AdminPanelProvider extends PanelProvider
                 Dashboard::class,
                 AnalyticsDashboard::class,
             ])
-            ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
                 AccountWidget::class,
+                DashboardOverviewWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,

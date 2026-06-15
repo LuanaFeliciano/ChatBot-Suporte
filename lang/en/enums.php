@@ -11,6 +11,7 @@ return [
         'manage-users' => 'Manage users',
         'manage-roles' => 'Manage roles & permissions',
         'manage-documents' => 'Manage documents',
+        'view-documents' => 'View knowledge base',
         'view-conversations' => 'View conversations',
         'view-analytics' => 'View analytics',
         'view-audit-logs' => 'View audit logs',

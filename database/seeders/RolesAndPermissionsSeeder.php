@@ -34,6 +34,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 PermissionName::ViewConversations,
                 PermissionName::ViewKnowledgeGaps,
                 PermissionName::ViewFeedback,
+                PermissionName::ViewDocuments,
             ]);
 
         $admin = User::firstOrCreate(
