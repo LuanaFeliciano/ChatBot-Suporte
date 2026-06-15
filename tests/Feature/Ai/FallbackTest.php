@@ -17,8 +17,7 @@ it('SupportAgent system prompt contains explicit instruction not to fabricate an
 });
 
 it('a BotMessage is persisted even when the agent returns a fallback response', function () {
-    $url = config('services.support_ticket_url');
-    SupportAgent::fake(["Não encontrei essa informação. Abra um chamado: {$url}"]);
+    SupportAgent::fake(['Não encontrei essa informação no momento.']);
 
     $service = new ChatService(new SessionService);
     $service->process('telegram', 'user_123', 'Alice', 'Pergunta sem resposta?');
@@ -26,12 +25,11 @@ it('a BotMessage is persisted even when the agent returns a fallback response', 
     expect(BotMessage::count())->toBe(1);
 });
 
-it('fallback answer references the support ticket URL from config', function () {
-    $url = config('services.support_ticket_url');
-    SupportAgent::fake(["Não encontrei essa informação. Abra um chamado: {$url}"]);
+it('fallback answer is persisted as the BotMessage answer', function () {
+    SupportAgent::fake(['Não encontrei essa informação no momento.']);
 
     $service = new ChatService(new SessionService);
     $service->process('telegram', 'user_123', null, 'Pergunta sem resposta?');
 
-    expect(BotMessage::first()->answer)->toContain($url);
+    expect(BotMessage::first()->answer)->toBe('Não encontrei essa informação no momento.');
 });

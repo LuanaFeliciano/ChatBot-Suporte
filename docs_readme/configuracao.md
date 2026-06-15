@@ -17,7 +17,6 @@ o comportamento do sistema.
 | `OPENAI_MODEL` | Modelo usado pelo agente (ex.: `gpt-4o`). Default no código: `gpt-4o`. |
 | `TELEGRAM_BOT_TOKEN` | Token do bot obtido via @BotFather. |
 | `TELEGRAM_WEBHOOK_SECRET` | Secret usado para validar as requisições recebidas do Telegram. |
-| `SUPPORT_TICKET_URL` | URL do suporte humano, usada nas respostas de escalonamento. Default: `https://suporte.exemplo.com`. |
 
 ### Usuário administrador inicial (seeder)
 
@@ -51,7 +50,6 @@ Credenciais de serviços de terceiros.
 - `services.telegram.webhook_secret` ← `TELEGRAM_WEBHOOK_SECRET`
 - `services.openai.vector_store_id` ← `OPENAI_VECTOR_STORE_ID`
 - `services.openai.model` ← `OPENAI_MODEL` (default `gpt-4o`)
-- `services.support_ticket_url` ← `SUPPORT_TICKET_URL` (default `https://suporte.exemplo.com`)
 
 ### `config/openai.php`
 Configuração do cliente `openai-php/laravel`: `api_key`, `organization`,

@@ -33,8 +33,8 @@ descobrir onde a documentação está faltando.
 Notas:
 - O **p95** usa `percentile_cont(0.95) within group (order by response_ms)`
   (PostgreSQL).
-- **Escalonamento** é detectado pela presença da `ESCALATION_PHRASE` na resposta
-  (`BotMessage::scopeEscalated`).
+- **Escalonamento** é detectado pela coluna `is_escalated`, preenchida quando o
+  agente chama a `EscalateConversationTool` (`BotMessage::scopeEscalated`).
 - O `KnowledgeBaseHealthWidget` ignora documentos com soft delete (eles não
   representam a base ativa).
 
@@ -74,8 +74,9 @@ retorna:
 > **Por que escalonamento e não "hits" de busca?** O SDK `laravel/ai` atual não
 > expõe as annotations de `file_citation` do File Search, então
 > `file_search_hit_count` é sempre 0/null e **não** é um sinal confiável. O
-> escalonamento, ao contrário, é totalmente controlado pelo prompt da aplicação.
-> Ver [agentes-de-ia.md](agentes-de-ia.md).
+> escalonamento, ao contrário, é registrado explicitamente quando o agente chama
+> a `EscalateConversationTool` (coluna `is_escalated`). Ver
+> [agentes-de-ia.md](agentes-de-ia.md).
 
 ## Limitações conhecidas
 

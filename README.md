@@ -58,7 +58,7 @@ O painel fica em `/admin` — entre com o usuário criado pelo seeder.
 ## Configuração
 
 Variáveis essenciais: `OPENAI_API_KEY`, `OPENAI_VECTOR_STORE_ID`, `OPENAI_MODEL`,
-`TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `SUPPORT_TICKET_URL`,
+`TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`,
 `ADMIN_EMAIL`, `ADMIN_PASSWORD`, além de `DB_*`, `QUEUE_CONNECTION`, `REDIS_*`,
 `CACHE_STORE`/`CACHE_LIMITER` e `APP_LOCALE`.
 

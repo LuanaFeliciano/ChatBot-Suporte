@@ -150,6 +150,7 @@ Cada pergunta/resposta do atendimento.
 | `answer` | text | |
 | `response_ms` | smallinteger | nullable — **ver limitação abaixo** |
 | `was_helpful` | boolean | nullable (feedback 👍/👎) |
+| `is_escalated` | boolean | indexado; `true` quando o agente chamou a `EscalateConversationTool` — ver [agentes-de-ia.md](agentes-de-ia.md) |
 | `was_fresh_session` | boolean | sessão nova (sem contexto prévio) |
 | `file_search_hit_count` | integer | **sempre 0/null** — ver [agentes-de-ia.md](agentes-de-ia.md) |
 | `question_normalized` | string | indexado; preenchido por `BotMessageObserver` |
