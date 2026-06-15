@@ -1,10 +1,18 @@
 <?php
 
 use App\Services\RateLimitService;
-use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\RateLimiter;
 
 beforeEach(function () {
-    Redis::flushdb();
+    foreach ([
+        'rate_limit_telegram_'.hash('sha256', 'user-1'),
+        'rate_limit_telegram_'.hash('sha256', 'user-A'),
+        'rate_limit_telegram_'.hash('sha256', 'user-B'),
+        'rate_limit_whatsapp_'.hash('sha256', 'user-1'),
+    ] as $key) {
+        RateLimiter::clear($key);
+    }
 });
 
 it('returns false for the 1st through 10th messages in a window', function () {
@@ -30,7 +38,7 @@ it('key is scoped per canal and uses a sha256 hash of the user id', function () 
     $service->isRateLimited('telegram', 'user-1');
 
     $expectedKey = 'rate_limit_telegram_'.hash('sha256', 'user-1');
-    expect(Redis::exists($expectedKey))->toBe(1);
+    expect((int) RateLimiter::attempts($expectedKey))->toBe(1);
 });
 
 it('different users on the same canal have independent counters', function () {
@@ -58,22 +66,26 @@ it('sets a TTL of 60 seconds on the first increment', function () {
     $service->isRateLimited('telegram', 'user-1');
 
     $key = 'rate_limit_telegram_'.hash('sha256', 'user-1');
-    expect(Redis::ttl($key))
+
+    expect(RateLimiter::availableIn($key))
         ->toBeGreaterThan(0)
         ->toBeLessThanOrEqual(60);
 });
 
 it('does not reset the TTL on subsequent increments within the window', function () {
     $service = new RateLimitService;
-
-    $service->isRateLimited('telegram', 'user-1');
-
     $key = 'rate_limit_telegram_'.hash('sha256', 'user-1');
-    $ttlAfterFirst = Redis::ttl($key);
 
-    Redis::setex($key, 45, 3);
-
+    $start = now();
+    Carbon::setTestNow($start);
     $service->isRateLimited('telegram', 'user-1');
+    $firstAvailableIn = RateLimiter::availableIn($key);
 
-    expect(Redis::ttl($key))->toBeLessThanOrEqual(45);
+    Carbon::setTestNow($start->copy()->addSeconds(15));
+    $service->isRateLimited('telegram', 'user-1');
+    $secondAvailableIn = RateLimiter::availableIn($key);
+
+    Carbon::setTestNow();
+
+    expect($secondAvailableIn)->toBeLessThan($firstAvailableIn);
 });

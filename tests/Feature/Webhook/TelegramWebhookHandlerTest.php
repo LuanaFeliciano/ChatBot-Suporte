@@ -6,13 +6,16 @@ use App\Enums\DocumentStatus;
 use App\Models\BotMessage;
 use App\Models\Channel;
 use App\Models\Document;
+use App\Services\RateLimitService;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Redis;
 
 beforeEach(function () {
     SupportAgent::fake(['Resposta de teste.']);
     Http::fake(['https://api.telegram.org/*' => Http::response(['ok' => true, 'result' => ['message_id' => 555]])]);
     Redis::flushdb();
+    RateLimiter::clear('rate_limit_telegram_'.hash('sha256', '111222333'));
     Channel::create(['name' => 'Telegram', 'slug' => 'telegram', 'is_active' => true]);
     Document::factory()->create(['status' => DocumentStatus::Indexed]);
 });
@@ -39,7 +42,7 @@ it('ignores payloads where the message has no text (e.g. a photo)', function () 
 it('returns immediately for a duplicate message_id without calling ChatService', function () {
     $payload = [
         'update_id' => 1,
-        'message' => ['message_id' => 42, 'from' => ['id' => 111222333, 'first_name' => 'Alice'], 'text' => 'Olá?'],
+        'message' => ['message_id' => 42, 'from' => ['id' => 111222333, 'first_name' => 'Alice'], 'text' => 'Esqueci minha senha, como redefinir?'],
     ];
 
     $handler = app(TelegramWebhookHandler::class);
@@ -50,9 +53,10 @@ it('returns immediately for a duplicate message_id without calling ChatService',
 });
 
 it('sends the throttle message when the user is rate limited and does not call ChatService', function () {
-    $key = 'rate_limit_telegram_'.hash('sha256', '111222333');
-    Redis::set($key, 10);
-    Redis::expire($key, 60);
+    $rateLimit = app(RateLimitService::class);
+    foreach (range(1, 10) as $i) {
+        $rateLimit->isRateLimited('telegram', '111222333');
+    }
 
     $payload = [
         'update_id' => 1,

@@ -24,7 +24,7 @@ it('lock key is scoped per canal and message_id', function () {
     $service = new IdempotencyService;
     $service->isDuplicate('telegram', '42');
 
-    expect(Redis::exists('msg_lock_telegram_42'))->toBe(1);
+    expect(Redis::exists('idempotency:telegram:42'))->toBe(1);
 });
 
 it('same message_id on different canals do not conflict', function () {
@@ -41,11 +41,11 @@ it('different message_ids on the same canal do not conflict', function () {
     expect($service->isDuplicate('telegram', '2'))->toBeFalse();
 });
 
-it('acquired lock has a TTL of 30 seconds', function () {
+it('acquired lock has a TTL of 24 hours', function () {
     $service = new IdempotencyService;
     $service->isDuplicate('telegram', '42');
 
-    expect(Redis::ttl('msg_lock_telegram_42'))
+    expect(Redis::ttl('idempotency:telegram:42'))
         ->toBeGreaterThan(0)
-        ->toBeLessThanOrEqual(30);
+        ->toBeLessThanOrEqual(86400);
 });

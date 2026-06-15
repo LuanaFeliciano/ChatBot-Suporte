@@ -19,6 +19,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Rate Limiter Cache Store
+    |--------------------------------------------------------------------------
+    |
+    | This option controls the cache store used by Laravel's RateLimiter
+    | (e.g. App\Services\RateLimitService). It is independent from the
+    | "default" cache store above, allowing the rate limiter backend to
+    | be swapped via configuration only.
+    |
+    */
+
+    'limiter' => env('CACHE_LIMITER', 'redis'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Cache Stores
     |--------------------------------------------------------------------------
     |

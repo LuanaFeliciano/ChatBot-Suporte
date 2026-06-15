@@ -89,7 +89,9 @@ O comando monta a URL final como `https://<sua-url-ngrok>/api/webhook/telegram` 
 | `OPENAI_VECTOR_STORE_ID` | ID do Vector Store onde os documentos são indexados |
 | `OPENAI_MODEL` | Modelo da OpenAI a utilizar (ex: `gpt-4o`) |
 | `SUPPORT_TICKET_URL` | URL do suporte humano — exibida quando o bot não encontra resposta |
-| `REDIS_HOST` / `REDIS_PORT` | Conexão com Redis (sessões, rate limit, idempotência) |
+| `REDIS_HOST` / `REDIS_PORT` | Conexão com Redis (sessões, idempotência, buffer de mensagens) |
+| `CACHE_STORE` | Cache store padrão da aplicação (default: `database`) |
+| `CACHE_LIMITER` | Cache store usado pelo `RateLimiter` (rate limit do Telegram). Default: `redis` |
 | `DB_CONNECTION` e demais `DB_*` | Conexão com o banco de dados |
 
 ---
@@ -162,11 +164,28 @@ Remove o arquivo do Vector Store e da OpenAI Files API. O registro local é **so
 | `TelegramWebhookHandler` | Verifica idempotência e rate limit, empilha a mensagem em um buffer Redis e despacha `ProcessChatMessage` (debounce de 3s) |
 | `ProcessChatMessage` | Job da fila `chat` — agrupa as mensagens pendentes do usuário, chama o `ChatService`, simula "digitando" e envia a resposta via `TelegramAdapter` |
 | `IdempotencyService` | Lock Redis (`SET NX`, TTL 24h) — evita duplicatas em retries do Telegram |
-| `RateLimitService` | Contador Redis atômico — máximo 10 mensagens/minuto por usuário |
+| `RateLimitService` | `RateLimiter::attempt()` — máximo 10 mensagens/minuto por usuário. Backend definido por `CACHE_LIMITER` (default `redis`) |
 | `ChatService` | Verifica sessão, instancia o `SupportAgent`, persiste a conversa |
 | `SessionService` | Janela de contexto de 24h por usuário via Redis (TTL renovado a cada mensagem) |
 | `SupportAgent` | Agente Laravel AI com `FileSearch` no Vector Store e histórico das últimas 10 trocas |
 | `DocumentService` | Pipeline de upload e indexação na OpenAI |
+
+### Cache e Redis
+
+O Redis é usado de duas formas independentes na aplicação:
+
+1. **Acesso direto via facade `Redis`** (conexão `default`, Redis DB 0) — não passa pelo sistema de cache do Laravel e não é afetado por `CACHE_STORE`/`CACHE_LIMITER`:
+   - `SessionService`: janela de contexto de 24h por usuário (`SETEX`/`EXISTS`).
+   - `IdempotencyService`: lock de deduplicação (`SET NX`, TTL 24h).
+   - `TelegramWebhookHandler`: buffer de mensagens pendentes (`RPUSH`/`INCR`, TTL 5min).
+
+2. **Cache store do Laravel** (`Cache` / `RateLimiter`), configurável via `.env`:
+   - `CACHE_STORE` (default `database`) — store padrão da aplicação (cache geral do Laravel).
+   - `CACHE_LIMITER` (default `redis`) — store usado por `RateLimitService` via `RateLimiter::attempt()`. Quando `redis`, usa a conexão Redis `cache` (DB 1, configurável via `REDIS_CACHE_DB`), separada da conexão `default` do item 1.
+
+Para trocar o backend do rate limit (ex: `database`, `array`), basta alterar `CACHE_LIMITER` — nenhuma alteração de código é necessária, pois `RateLimitService` usa apenas a facade `RateLimiter`, sem acoplamento a um driver específico.
+
+---
 
 ### Extensibilidade de canais
 

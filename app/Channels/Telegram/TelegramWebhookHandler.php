@@ -13,6 +13,8 @@ class TelegramWebhookHandler
 {
     private const FEEDBACK_THANK_YOU = 'Obrigado pelo retorno!';
 
+    private const RATE_LIMIT_MESSAGE = 'Você enviou muitas mensagens em um curto período. Aguarde um momento antes de continuar.';
+
     public function __construct(
         private readonly TelegramAdapter $adapter,
         private readonly IdempotencyService $idempotency,
@@ -41,6 +43,8 @@ class TelegramWebhookHandler
         }
 
         if ($this->rateLimit->isRateLimited('telegram', $channelUser)) {
+            //$this->adapter->sendReply($channelUser, self::RATE_LIMIT_MESSAGE);
+            //para ativar a mensagem de limite so descomentar
             return;
         }
 
