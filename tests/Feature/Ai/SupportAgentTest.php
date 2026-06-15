@@ -35,6 +35,14 @@ it('SupportAgent tools() returns a FileSearch tool', function () {
         ->and($tools[0])->toBeInstanceOf(FileSearch::class);
 });
 
+it('SupportAgent model() returns the model from config services.openai.model', function () {
+    config(['services.openai.model' => 'gpt-5.5']);
+
+    $agent = new SupportAgent('telegram', 'user_123');
+
+    expect($agent->model())->toBe('gpt-5.5');
+});
+
 it('SupportAgent providerOptions() returns reasoning effort high for Lab::OpenAI', function () {
     $agent = new SupportAgent('telegram', 'user_123');
 
@@ -58,22 +66,22 @@ it('SupportAgent messages() returns user/assistant message pairs from bot_messag
     $channel = Channel::create(['name' => 'Telegram', 'slug' => 'telegram', 'is_active' => true]);
 
     BotMessage::factory()->create([
-        'channel_id'   => $channel->id,
+        'channel_id' => $channel->id,
         'channel_user' => 'user_abc',
-        'question'     => 'Primeira pergunta?',
-        'answer'       => 'Primeira resposta.',
-        'created_at'   => now()->subMinutes(2),
+        'question' => 'Primeira pergunta?',
+        'answer' => 'Primeira resposta.',
+        'created_at' => now()->subMinutes(2),
     ]);
 
     BotMessage::factory()->create([
-        'channel_id'   => $channel->id,
+        'channel_id' => $channel->id,
         'channel_user' => 'user_abc',
-        'question'     => 'Segunda pergunta?',
-        'answer'       => 'Segunda resposta.',
-        'created_at'   => now()->subMinute(),
+        'question' => 'Segunda pergunta?',
+        'answer' => 'Segunda resposta.',
+        'created_at' => now()->subMinute(),
     ]);
 
-    $agent    = new SupportAgent('telegram', 'user_abc');
+    $agent = new SupportAgent('telegram', 'user_abc');
     $messages = $agent->messages();
 
     expect($messages)->toHaveCount(4)
@@ -92,20 +100,20 @@ it('SupportAgent messages() ignores messages from other channel_users', function
     $channel = Channel::create(['name' => 'Telegram', 'slug' => 'telegram', 'is_active' => true]);
 
     BotMessage::factory()->create([
-        'channel_id'   => $channel->id,
+        'channel_id' => $channel->id,
         'channel_user' => 'user_abc',
-        'question'     => 'Minha pergunta?',
-        'answer'       => 'Minha resposta.',
+        'question' => 'Minha pergunta?',
+        'answer' => 'Minha resposta.',
     ]);
 
     BotMessage::factory()->create([
-        'channel_id'   => $channel->id,
+        'channel_id' => $channel->id,
         'channel_user' => 'outro_user',
-        'question'     => 'Pergunta de outro.',
-        'answer'       => 'Resposta de outro.',
+        'question' => 'Pergunta de outro.',
+        'answer' => 'Resposta de outro.',
     ]);
 
-    $agent    = new SupportAgent('telegram', 'user_abc');
+    $agent = new SupportAgent('telegram', 'user_abc');
     $messages = $agent->messages();
 
     expect($messages)->toHaveCount(2);

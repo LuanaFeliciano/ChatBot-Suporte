@@ -109,6 +109,11 @@ class SupportAgent implements Agent, Conversational, HasProviderOptions, HasTool
         return self::SYSTEM_PROMPT."\n\nLink de suporte para escalar: {$supportUrl}";
     }
 
+    public function model(): string
+    {
+        return config('services.openai.model');
+    }
+
     public function messages(): iterable
     {
         if ($this->freshSession) {
