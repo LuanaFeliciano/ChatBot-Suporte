@@ -53,7 +53,7 @@ cp .env.example .env
 ./vendor/bin/sail artisan migrate
 
 # 6. Inicie o worker da fila (necessário para processar as mensagens)
-./vendor/bin/sail artisan queue:work redis --queue=chat
+./vendor/bin/sail artisan queue:work redis --queue=chat,default
 ```
 
 ### Registrar o webhook do Telegram
@@ -61,7 +61,7 @@ cp .env.example .env
 Para desenvolvimento local, exponha a aplicação com [ngrok](https://ngrok.com) ou similar:
 
 ```bash
-ngrok http 80
+ngrok http 8080
 ```
 
 Com a URL pública em mãos, registre o webhook via Artisan (lê `TELEGRAM_BOT_TOKEN` e `TELEGRAM_WEBHOOK_SECRET` do `.env` automaticamente):
@@ -77,7 +77,6 @@ O comando monta a URL final como `https://<sua-url-ngrok>/api/webhook/telegram` 
 ```bash
 ./vendor/bin/sail artisan telegram:webhook:remove
 ```
-
 ---
 
 ## Variáveis de ambiente
