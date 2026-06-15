@@ -75,6 +75,7 @@ class ChatService
             'answer' => $answer,
             'response_ms' => $responseMs,
             'was_fresh_session' => $freshSession,
+            'is_escalated' => $agent->isEscalated(),
             'file_search_hit_count' => $agent->fileSearchHitCount($response),
         ]);
 

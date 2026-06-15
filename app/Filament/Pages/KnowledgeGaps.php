@@ -2,7 +2,6 @@
 
 namespace App\Filament\Pages;
 
-use App\Ai\Agents\SupportAgent;
 use App\Enums\DocumentStatus;
 use App\Enums\PermissionName;
 use App\Filament\Resources\BotMessages\BotMessageResource;
@@ -177,7 +176,7 @@ class KnowledgeGaps extends Page implements HasTable
                         DB::raw('max(created_at) as last_seen'),
                         DB::raw('count(distinct channel_user) as distinct_users'),
                         DB::raw('coalesce(bool_or(was_helpful = false), false)::int as has_negative_feedback'),
-                        DB::raw("count(*) filter (where answer like '%".str_replace("'", "''", SupportAgent::ESCALATION_PHRASE)."%') as escalated_count"),
+                        DB::raw('count(*) filter (where is_escalated) as escalated_count'),
                     ])
                     ->whereNotNull('question_normalized')
                     ->groupBy('question_normalized')

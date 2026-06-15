@@ -25,6 +25,12 @@ class BotMessageFactory extends Factory
             'answer' => fake()->paragraph(),
             'response_ms' => fake()->numberBetween(200, 5000),
             'was_helpful' => null,
+            'is_escalated' => false,
         ];
+    }
+
+    public function escalated(): static
+    {
+        return $this->state(['is_escalated' => true]);
     }
 }

@@ -1,6 +1,7 @@
 <?php
 
 use App\Ai\Agents\SupportAgent;
+use App\Ai\Tools\EscalateConversationTool;
 use App\Models\BotMessage;
 use App\Models\Channel;
 use Laravel\Ai\Contracts\Agent;
@@ -10,6 +11,7 @@ use Laravel\Ai\Contracts\HasTools;
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Messages\Message;
 use Laravel\Ai\Providers\Tools\FileSearch;
+use Laravel\Ai\Responses\Data\ToolCall;
 
 it('SupportAgent implements Agent, Conversational, HasTools, HasProviderOptions', function () {
     expect(SupportAgent::class)
@@ -19,20 +21,13 @@ it('SupportAgent implements Agent, Conversational, HasTools, HasProviderOptions'
         ->toImplement(HasProviderOptions::class);
 });
 
-it('SupportAgent instructions() includes the support_ticket_url from config', function () {
-    config(['services.support_ticket_url' => 'https://meusuporte.exemplo.com']);
-
-    $agent = new SupportAgent('telegram', 'user_123');
-
-    expect($agent->instructions())->toContain('https://meusuporte.exemplo.com');
-});
-
-it('SupportAgent tools() returns a FileSearch tool', function () {
+it('SupportAgent tools() returns a FileSearch tool and an EscalateConversationTool', function () {
     $agent = new SupportAgent('telegram', 'user_123');
     $tools = iterator_to_array($agent->tools());
 
-    expect($tools)->toHaveCount(1)
-        ->and($tools[0])->toBeInstanceOf(FileSearch::class);
+    expect($tools)->toHaveCount(2)
+        ->and($tools[0])->toBeInstanceOf(FileSearch::class)
+        ->and($tools[1])->toBeInstanceOf(EscalateConversationTool::class);
 });
 
 it('SupportAgent model() returns the model from config services.openai.model', function () {
@@ -127,4 +122,26 @@ it('SupportAgent can be prompted and returns a string response', function () {
     expect((string) $response)->toBe('Olá, posso ajudar!');
 
     SupportAgent::assertPrompted('Como cadastrar?');
+});
+
+it('SupportAgent isEscalated() returns false when the escalation tool was not called', function () {
+    SupportAgent::fake(['Olá, posso ajudar!']);
+
+    $agent = new SupportAgent('telegram', 'user_123');
+    $agent->prompt('Como cadastrar?');
+
+    expect($agent->isEscalated())->toBeFalse();
+});
+
+it('SupportAgent isEscalated() returns true and returns the escalation message when the escalation tool is called', function () {
+    SupportAgent::fake([
+        new ToolCall(id: 'call_1', name: 'EscalateConversationTool', arguments: []),
+        EscalateConversationTool::MESSAGE,
+    ]);
+
+    $agent = new SupportAgent('telegram', 'user_123');
+    $response = $agent->prompt('Como cadastrar?');
+
+    expect($agent->isEscalated())->toBeTrue()
+        ->and((string) $response)->toBe(EscalateConversationTool::MESSAGE);
 });

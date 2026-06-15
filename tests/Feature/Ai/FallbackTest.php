@@ -16,14 +16,6 @@ it('SupportAgent system prompt contains explicit instruction not to fabricate an
     expect(SupportAgent::SYSTEM_PROMPT)->toContain('Nunca invente');
 });
 
-it('SupportAgent instructions() embeds the support_ticket_url config value', function () {
-    config(['services.support_ticket_url' => 'https://test-suporte.exemplo.com']);
-
-    $agent = new SupportAgent('telegram', 'user_123');
-
-    expect($agent->instructions())->toContain('https://test-suporte.exemplo.com');
-});
-
 it('a BotMessage is persisted even when the agent returns a fallback response', function () {
     $url = config('services.support_ticket_url');
     SupportAgent::fake(["Não encontrei essa informação. Abra um chamado: {$url}"]);

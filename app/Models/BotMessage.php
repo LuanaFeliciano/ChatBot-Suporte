@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Ai\Agents\SupportAgent;
 use App\Enums\DocumentStatus;
 use App\Observers\BotMessageObserver;
 use Database\Factories\BotMessageFactory;
@@ -30,6 +29,7 @@ class BotMessage extends Model
         'file_search_hit_count',
         'question_normalized',
         'channel_message_id',
+        'is_escalated',
     ];
 
     protected function casts(): array
@@ -38,6 +38,7 @@ class BotMessage extends Model
             'was_helpful' => 'boolean',
             'was_fresh_session' => 'boolean',
             'file_search_hit_count' => 'integer',
+            'is_escalated' => 'boolean',
         ];
     }
 
@@ -48,12 +49,12 @@ class BotMessage extends Model
 
     public function isEscalated(): bool
     {
-        return str_contains($this->answer, SupportAgent::ESCALATION_PHRASE);
+        return (bool) $this->is_escalated;
     }
 
     public function scopeEscalated(Builder $query): Builder
     {
-        return $query->where('answer', 'like', '%'.SupportAgent::ESCALATION_PHRASE.'%');
+        return $query->where('is_escalated', true);
     }
 
     public function scopeNoDocumentIndexed(Builder $query): Builder
