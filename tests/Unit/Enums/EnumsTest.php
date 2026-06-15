@@ -41,16 +41,17 @@ it('Locale has cases PtBr and En with correct string values', function () {
     expect(Locale::cases())->toHaveCount(2);
 });
 
-it('PermissionName has the 8 permission slugs from the Role/Permission Matrix with correct string values and labels', function () {
+it('PermissionName has the 9 permission slugs from the Role/Permission Matrix with correct string values and labels', function () {
     expect(PermissionName::ManageUsers->value)->toBe('manage-users');
     expect(PermissionName::ManageRoles->value)->toBe('manage-roles');
     expect(PermissionName::ManageDocuments->value)->toBe('manage-documents');
+    expect(PermissionName::ViewDocuments->value)->toBe('view-documents');
     expect(PermissionName::ViewConversations->value)->toBe('view-conversations');
     expect(PermissionName::ViewAnalytics->value)->toBe('view-analytics');
     expect(PermissionName::ViewAuditLogs->value)->toBe('view-audit-logs');
     expect(PermissionName::ViewKnowledgeGaps->value)->toBe('view-knowledge-gaps');
     expect(PermissionName::ViewFeedback->value)->toBe('view-feedback');
-    expect(PermissionName::cases())->toHaveCount(8);
+    expect(PermissionName::cases())->toHaveCount(9);
 
     expect(PermissionName::ManageRoles->getLabel())->toBe(__('enums.permission_name.manage-roles'));
 });
