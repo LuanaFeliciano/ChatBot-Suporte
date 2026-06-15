@@ -15,7 +15,8 @@ class DocumentForm
                 FileUpload::make('file')
                     ->label(__('documents.fields.file'))
                     ->required()
-                    ->acceptedFileTypes(['application/pdf', 'text/plain'])
+                    ->acceptedFileTypes(['application/pdf', 'text/plain', 'text/markdown'])
+                    ->mimeTypeMap(['md' => 'text/markdown'])
                     ->storeFileNamesIn('original_filename')
                     ->directory('documents')
                     ->disk('local'),
