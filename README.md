@@ -1,4 +1,4 @@
-# Suporte APP
+# Chatbot Suporte
 
 Chatbot de suporte técnico via **Telegram** com arquitetura **RAG**: responde às
 dúvidas dos usuários com base exclusivamente em documentos indexados em um OpenAI
