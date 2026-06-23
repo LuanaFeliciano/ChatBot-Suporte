@@ -38,7 +38,7 @@ OpenAI (modelo + Vector Store) · Redis · PostgreSQL · Telegram Bot API · Lar
 ```bash
 cp .env.example .env
 # Preencha OPENAI_*, TELEGRAM_*, ADMIN_EMAIL/ADMIN_PASSWORD
-
+composer install
 ./vendor/bin/sail up -d
 ./vendor/bin/sail artisan key:generate
 ./vendor/bin/sail artisan migrate
