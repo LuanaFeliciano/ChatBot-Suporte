@@ -156,8 +156,14 @@ class DocumentService
      */
     public function delete(Document $document): void
     {
-        $this->removeFromVectorStore($document->vector_store_file_id);
-        $this->deleteFile($document->openai_file_id);
+        if ($document->vector_store_file_id !== null) {
+            $this->removeFromVectorStore($document->vector_store_file_id);
+        }
+
+        if ($document->openai_file_id !== null) {
+            $this->deleteFile($document->openai_file_id);
+        }
+
         $document->delete();
 
         AuditLog::create([
