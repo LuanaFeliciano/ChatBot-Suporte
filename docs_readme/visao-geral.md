@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-O **Suporte APP** é um chatbot de suporte técnico que atende usuários pelo
+O **Suporte Chat** é um chatbot de suporte técnico que atende usuários pelo
 Telegram e responde dúvidas **exclusivamente** com base em documentos indexados
 em um OpenAI Vector Store (arquitetura RAG — Retrieval-Augmented Generation).
 

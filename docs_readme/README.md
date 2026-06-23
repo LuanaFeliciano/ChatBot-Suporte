@@ -1,4 +1,4 @@
-# Documentação — Suporte APP
+# Documentação — Suporte Chat
 
 Documentação técnica do chatbot de suporte via Telegram com arquitetura RAG
 (Retrieval-Augmented Generation) e painel administrativo Filament.
